@@ -1,0 +1,45 @@
+[tool.poetry]
+name = "dag-insight-plugin"
+version = "0.1.0-alpha"
+description = "An Apache Airflow plugin that visualizes DAG runs in a Gantt chart, predicts future runs, and identifies tasks that won't execute. Enhance your workflow monitoring and planning with intuitive visualizations."
+license = "MIT"
+authors = ["Hipposys"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+apache-airflow = "^2.4.0"
+pandas = ">=1.3.5"
+SQLAlchemy = ">=1.4.0"
+
+[tool.poetry.dev-dependencies]
+flake8 = "^6.0"
+Flake8-pyproject = ">=1.2.0"
+
+[tool.poetry.plugins."airflow.plugins"]
+dag-insight-plugin = "dag_insight_plugin.my_plugins.dag_insight:AirflowEdwGrantsPlugin"
+
+[tool.flake8]
+max-line-length = 130
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    ".venv",
+    "migrations",
+    "tests"
+]
+ignore = [
+    "E203",
+    "W504",
+    "E126"
+]
+max-complexity = 10
+show-source = true
+per-file-ignores = [
+    "tests/*:D"
+]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

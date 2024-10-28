@@ -23,7 +23,7 @@ bp = Blueprint(
 session = settings.Session()
 
 
-class DagsRunsGanttAppBuilderBaseView(AppBuilderBaseView):
+class DagInsightAppBuilderBaseView(AppBuilderBaseView):
     default_view = 'main'
     route_base = '/dag_insight'
 
@@ -273,7 +273,7 @@ class DagsRunsGanttAppBuilderBaseView(AppBuilderBaseView):
                         'dag_id': dag.dag_id,
                         'start_time': run if
                         run else None,
-                        'end_time':  (run + dag.duration) if
+                        'end_time': (run + dag.duration) if
                         run else None,
                         'state': 'forecast',
                         'owner': dag.owners,  # Fetch owner from conf or use 'unknown'
@@ -335,7 +335,7 @@ class DagsRunsGanttAppBuilderBaseView(AppBuilderBaseView):
         time_limit = datetime.now(timezone.utc) - timedelta(hours=4)
         return redirect(url_for('DagsRunsGanttAppBuilderBaseView.gantt_chart', start=time_limit.isoformat()))
 
-    @expose('/gantt_chart')
+    @expose('/dag_insight')
     def gantt_chart(self):
         start, end, client_timezone, show_future_runs = self.get_params_from_request()
         start_dt, end_dt, end_of_time_dt = self.get_filter_dates(start, end, client_timezone)
@@ -350,7 +350,7 @@ class DagsRunsGanttAppBuilderBaseView(AppBuilderBaseView):
         )
 
 
-v_appbuilder_view = DagsRunsGanttAppBuilderBaseView()
+v_appbuilder_view = DagInsightAppBuilderBaseView()
 v_appbuilder_package = {
     'name': 'DAG Insight',
     'category': 'Browse',
@@ -358,7 +358,7 @@ v_appbuilder_package = {
 }
 
 
-class DagsRunsGanttPlugin(AirflowPlugin):
+class DagInsightPlugin(AirflowPlugin):
     name = 'dag_insight'
     hooks = []
     macros = []

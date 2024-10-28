@@ -333,10 +333,10 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
     @expose('/')
     def main(self):
         time_limit = datetime.now(timezone.utc) - timedelta(hours=4)
-        return redirect(url_for('DagsRunsGanttAppBuilderBaseView.gantt_chart', start=time_limit.isoformat()))
+        return redirect(url_for('DagInsightAppBuilderBaseView.dag_insight', start=time_limit.isoformat()))
 
     @expose('/dag_insight')
-    def gantt_chart(self):
+    def dag_insight(self):
         start, end, client_timezone, show_future_runs = self.get_params_from_request()
         start_dt, end_dt, end_of_time_dt = self.get_filter_dates(start, end, client_timezone)
         time_filter = self.get_time_filter(start_dt, end_dt, start, end_of_time_dt, show_future_runs)

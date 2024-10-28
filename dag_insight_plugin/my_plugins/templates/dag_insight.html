@@ -146,7 +146,7 @@
 
     <h2>DAG Insight</h2>
     <!-- Date Filter Form -->
-    <form id="date-filter-form" action="{{ url_for('DagsRunsGanttAppBuilderBaseView.gantt_chart') }}" method="get">
+    <form id="date-filter-form" action="{{ url_for('DagInsightAppBuilderBaseView.dag_insight') }}" method="get">
         <div class="form-group">
             <label for="start-datetime">From:</label>
             <input type="datetime-local" id="start-datetime" name="start" value="{{ time_filter.get('start', '') }}">

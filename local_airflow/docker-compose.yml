@@ -1,0 +1,83 @@
+version: "3.5"
+
+x-airflow-common:
+  &airflow-common
+  build:
+    context: .
+    dockerfile: .Dockerfile
+  user: "${AIRFLOW_UID}:0"
+  env_file:
+    - common-airflow.env
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ../airflow_dag_insight/my_plugins:/opt/airflow/plugins
+
+x-airflow_depends_on:
+  &airflow-depends-on
+  depends_on:
+    postgres:
+      condition: service_healthy
+    airflow-init:
+      condition: service_completed_successfully
+
+x-depends_on_database:
+  &depends-on-database
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  redis:
+    image: 'redis:3.2.10'
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 5
+    env_file:
+      - common-airflow.env
+    environment:
+      PGDATA: /var/lib/postgresql/data/db-files/
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data/db-files
+
+  scheduler:
+    <<: [*airflow-common,*airflow-depends-on]
+    container_name: airflow-scheduler
+    command: scheduler
+    restart: on-failure
+    ports:
+      - "8793:8793"
+
+  webserver:
+    <<: [*airflow-common, *airflow-depends-on]
+    container_name: airflow-webserver
+    restart: always
+    command: webserver
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+
+  airflow-init:
+    <<: *airflow-common
+    container_name: airflow-init
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        mkdir -p /sources/logs /sources/dags /sources/plugins
+        chown -R "${AIRFLOW_UID}:0" /sources/{logs,dags,plugins}
+        exec /entrypoint airflow version
+  worker:
+    <<: [*airflow-common,*airflow-depends-on]
+    container_name: airflow-worker
+    command: celery worker
+    restart: on-failure

@@ -56,7 +56,7 @@
             "data" -> 'dag' -> 'timetable' -> '__var' -> 'dataset_condition' dataset_dependencies,
             'any' condition_type,
             1 lvl,
-            null dataset
+            "data" -> 'dag' -> 'timetable' -> '__var' -> 'dataset_condition' ->> 'uri' dataset
         from
             serialized_dag sd
         where

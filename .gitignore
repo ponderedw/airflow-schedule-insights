@@ -34,3 +34,6 @@ Thumbs.db
 .nox/
 .coverage
 .pytest_cache/
+
+
+local_airflow/pgdata

@@ -162,7 +162,7 @@
             <input type="checkbox" id="show-future-runs" name="show_future_runs" value="true" {% if time_filter.get('show_future_runs', '') %}checked{% endif %}>
         </div>
         <input type="hidden" id="timezone" name="timezone" value="">
-        <button type="submit" class="btn btn-primary">Filter</button>
+        <button type="submit" class="btn btn-primary">Update</button>
     </form>
     
     {% if time_filter.get('show_future_runs', '') == 'true' %}

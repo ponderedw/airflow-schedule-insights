@@ -117,6 +117,10 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
         all_is_wrong = False
         failed_path = ''
         start_times = []
+        print('condition_type')
+        print(deps)
+        print(condition_type)
+        print(condition_type == 'all')
         for dep in deps:
             start_time, path = self.get_dependency_end_time(dep, start_dt, end_dt)
             if start_time is not None:
@@ -128,7 +132,6 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
                 failed_path = path + ' -> ' + dep['dep_id'] if dep['dep_type'] == 'DAG' else path
                 if condition_type == 'all':
                     all_is_wrong = True
-                    break
         if condition_type == 'any':
             if len(start_times) == 0:
                 description = "DAG won't run because it won't be triggered by any of its dependencies. "

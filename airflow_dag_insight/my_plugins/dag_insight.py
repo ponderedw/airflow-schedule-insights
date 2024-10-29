@@ -117,10 +117,6 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
         all_is_wrong = False
         failed_path = ''
         start_times = []
-        print('condition_type')
-        print(deps)
-        print(condition_type)
-        print(condition_type == 'all')
         for dep in deps:
             start_time, path = self.get_dependency_end_time(dep, start_dt, end_dt)
             if start_time is not None:

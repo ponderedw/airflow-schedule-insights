@@ -1,0 +1,43 @@
+name: Tag with Poetry Version
+
+on:
+  push:
+    branches:
+      - main  # Only trigger on main branch
+
+jobs:
+  tag_version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Poetry
+        run: curl -sSL https://install.python-poetry.org | python3 -
+
+      - name: Get Poetry Version
+        id: poetry_version
+        run: echo "version=$(poetry version --short)" >> $GITHUB_ENV
+
+      - name: Check if tag already exists
+        run: |
+          if git rev-parse "v$version" >/dev/null 2>&1; then
+            echo "Tag v$version already exists."
+            exit 0
+          fi
+        env:
+          version: ${{ env.version }}
+
+      - name: Create Git Tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$version" -m "Version $version"
+          git push origin "v$version"
+        env:
+          version: ${{ env.version }}

@@ -18,7 +18,7 @@ bp = Blueprint(
     __name__,
     template_folder='templates',
     static_folder='static',
-    static_url_path='/static/dag_insight_plugin',
+    static_url_path='/static/airflow_dag_insight',
 )
 session = settings.Session()
 

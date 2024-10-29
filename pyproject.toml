@@ -16,7 +16,7 @@ flake8 = "^6.0"
 Flake8-pyproject = ">=1.2.0"
 
 [tool.poetry.plugins."airflow.plugins"]
-dag-insight-plugin = "dag_insight_plugin.my_plugins.dag_insight:DagInsightPlugin"
+dag-insight-plugin = "airflow_dag_insight.my_plugins.dag_insight:DagInsightPlugin"
 
 [tool.flake8]
 max-line-length = 140

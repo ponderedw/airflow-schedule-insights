@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "airflow-dag-insight"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 description = "An Apache Airflow plugin that visualizes DAG runs in a Gantt chart, predicts future runs, and identifies tasks that won't execute. Enhance your workflow monitoring and planning with intuitive visualizations."
 license = "MIT"
 authors = ["Hipposys"]

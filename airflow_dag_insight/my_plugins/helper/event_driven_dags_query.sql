@@ -167,10 +167,7 @@
             cast(dd.dag_id as varchar) trigger_id,
             'DAG' trigger_type,
             least(
-            case
-                when start_date < current_timestamp then current_timestamp
-                else start_date
-            end,
+            start_date,
             case
                 when dd.next_dag_run < current_timestamp then current_timestamp
                 else dd.next_dag_run

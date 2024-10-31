@@ -44,4 +44,6 @@ jobs:
         run: poetry install
       
       - name: Test Sql Linting
-        run: sqlfluff lint airflow_dag_insight/my_plugins/helper
+        run: |
+          source .venv/bin/activate
+          sqlfluff lint airflow_dag_insight/my_plugins/helper

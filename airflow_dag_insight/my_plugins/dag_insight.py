@@ -102,7 +102,8 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
             path = dep['trigger_id'] if dep['trigger_type'] == 'DAG' else ''
         else:
             start_time, path = self.calculate_events_end_dates(dep['trigger_id'],
-                                                               dep['trigger_type'], start_dt, end_dt)
+                                                               dep['trigger_type'], start_dt, end_dt,
+                                                               dep['trigger_event_mean_duration'])
             if start_time is None:
                 start_time = dep['trigger_end_date']
                 if dep['trigger_end_date']:
@@ -117,10 +118,6 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
         all_is_wrong = False
         failed_path = ''
         start_times = []
-        print('condition_type')
-        print(deps)
-        print(condition_type)
-        print(condition_type == 'all')
         for dep in deps:
             start_time, path = self.get_dependency_end_time(dep, start_dt, end_dt)
             if start_time is not None:
@@ -184,7 +181,7 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
                 and final_end_time >= start_dt:
             self.update_future_runs(dep_id, final_start_time, final_end_time, owners, path, dep_mean_duration)
 
-    def calculate_events_end_dates(self, dep_id, dep_type, start_dt, end_dt):
+    def calculate_events_end_dates(self, dep_id, dep_type, start_dt, end_dt, trigger_event_mean_duration):
         deps = [record for record in self.records if record['dep_id'] == dep_id and record['dep_type'] == dep_type]
         if len(deps) == 0:
             return (None, '')  # if Dataset was triggered but the DAG is paused
@@ -194,16 +191,19 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
             final_start_time = {'start_time': None, 'description': 'The DAG is paused', 'path': dep_id}
         final_end_time = None if final_start_time.get('start_time') is None \
             else final_start_time['start_time'] + dep_mean_duration
+        trigger_event_mean_duration = None if final_start_time.get('start_time') is None or \
+            trigger_event_mean_duration is None \
+            else final_start_time['start_time'] + trigger_event_mean_duration
         path = final_start_time.get('path', '')
         if dep_type == 'DAG':
             self.update_future_metadata(final_start_time, dep_id, final_end_time, start_dt, end_dt,
                                         owners, path, dep_mean_duration, ind_scheduled)
-        return (final_end_time, path)
+        return (trigger_event_mean_duration, path)
 
     def get_future_dependencies_runs(self, start_dt, end_dt):
         roots = list(set([(record['dep_id'], record['dep_type']) for record in self.records if record['ind_root']]))
         for root in roots:
-            self.calculate_events_end_dates(root[0], root[1], start_dt, end_dt)
+            self.calculate_events_end_dates(root[0], root[1], start_dt, end_dt, None)
 
     def update_event_driven_runs_metadata(self, start_dt: datetime, end_dt: datetime):
         datasets_predictions_query_path = pathlib.Path(__file__).parent.resolve() \

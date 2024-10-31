@@ -167,6 +167,12 @@
             cast(dd.dag_id as varchar) trigger_id,
             'DAG' trigger_type,
             least(
+            start_date,
+            case
+                when dd.next_dag_run < current_timestamp then current_timestamp
+                else dd.next_dag_run
+            end) start_date,
+            least(
             case
                 when start_date + dd.mean_duartion < current_timestamp then current_timestamp
                 else start_date + dd.mean_duartion
@@ -198,6 +204,52 @@
             where
                 x."data" -> 'dag' -> 'timetable' ->> '__type' in ('airflow.timetables.interval.CronDataIntervalTimetable', 'airflow.timetables.datasets.DatasetOrTimeSchedule')
         ),
+        triggers_event_durations as (
+        select
+			d.target dep_id, 'DAG' dep_type, d.source trigger_id, 'DAG' trigger_type ,
+			least(percentile_cont(0.5) within group( order by coalesce(x.start_date - y.start_date,
+		            interval '5 minutes')), dd.mean_duartion ) duration 
+		from
+			task_instance x,
+			dags_runs y,
+			dependencies d,
+			dags_durations dd
+		where
+			d.dep_type = 'trigger'
+			and d.source = d.dag_id
+			and y.row_id <= 30
+			and y.run_id = x.run_id
+			and y.dag_id = x.dag_id
+			and x.task_id = d.dependency_id
+			and x.dag_id = d.dag_id
+			and x.state = 'success'
+			and dd.dag_id = y.dag_id
+		group by d.source, d.target, dd.mean_duartion
+		
+		union all
+		
+		select
+			d.uri dep_id, 'dataset' dep_type, de.source_dag_id trigger_id, 'DAG' trigger_id, 
+			least(percentile_cont(0.5) within group( order by coalesce(de."timestamp" - y.start_date,
+		            interval '5 minutes')), dd.mean_duartion ) duration
+		from
+			dataset_event de,
+			dataset d,
+			dags_runs y,
+			dependencies dep,
+			dags_durations dd
+		where
+			dep.dep_type = 'dataset'
+			and dep.source = dep.dag_id
+			and y.row_id <= 30
+			and y.run_id = de.source_run_id
+			and y.dag_id = de.source_dag_id 
+			and de.dataset_id = d.id
+			and dep.dependency_id = d.uri
+			and dd.dag_id = y.dag_id
+		group by de.source_dag_id, d.uri, dd.mean_duartion
+        
+        ),
         all_dependencies_enriched as (
         select
             ad.*,
@@ -207,9 +259,16 @@
             dd.is_active dep_is_active,
             coalesce(dd_triggers.mean_duartion,
             interval '0 minutes') trigger_mean_duration,
+            coalesce(ted.duration,
+            coalesce(dd_triggers.mean_duartion,
+            interval '0 minutes')) as trigger_event_mean_duration,
             dd_triggers.is_paused trigger_is_paused,
             dd_triggers.is_active trigger_is_active,
-            dnr.end_date trigger_end_date,
+            case
+                when coalesce(dnr.start_date + ted.duration, dnr.end_date) is null then null
+                when coalesce(dnr.start_date + ted.duration, dnr.end_date) < current_timestamp then current_timestamp
+                else coalesce(dnr.start_date + ted.duration, dnr.end_date)
+            end trigger_end_date,
             dd.owners deps_owners,
             case when sd.dag_id is Null then false else true end ind_dep_scheduled
         from
@@ -221,6 +280,11 @@
         left join dags_next_run dnr on
             ad.trigger_id = dnr.trigger_id
             and ad.trigger_type = dnr.trigger_type
+        left join triggers_event_durations ted on
+            ad.trigger_id = ted.trigger_id
+            and ad.trigger_type = ted.trigger_type
+            and ad.dep_id = ted.dep_id
+            and ad.dep_type = ted.dep_type
         left join scheduled_dags sd on
             sd.dag_id = ad.dep_id and ad.dep_type = 'DAG'
         where
@@ -252,6 +316,7 @@
             is_paused dep_is_paused,
             is_active dep_is_active,
             null trigger_mean_duration,
+            null trigger_event_mean_duration,
             null trigger_is_paused,
             null trigger_is_active,
             null trigger_end_date,

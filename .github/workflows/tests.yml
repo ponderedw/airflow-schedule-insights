@@ -23,9 +23,9 @@ jobs:
         with:
           filters: |
             sql_query:
-              - 'airflow_dag_insight/my_plugins/helper/**.sql'
+              - 'airflow_dag_insight/**/*.sql'
             python:
-              - 'airflow_dag_insight/**.py'
+              - 'airflow_dag_insight/**/*.py'
 
   sql_lint:
     runs-on: ubuntu-latest

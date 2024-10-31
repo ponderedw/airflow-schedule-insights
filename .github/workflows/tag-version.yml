@@ -1,4 +1,4 @@
-name: Tag with Poetry Version
+name: TagWithPoetryVersion
 
 on:
   push:

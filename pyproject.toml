@@ -15,6 +15,7 @@ SQLAlchemy = ">=1.4.0"
 [tool.poetry.dev-dependencies]
 flake8 = "^6.0"
 Flake8-pyproject = ">=1.2.0"
+sqlfluff = "^3.1.1"
 
 [tool.poetry.plugins."airflow.plugins"]
 dag-insight-plugin = "airflow_dag_insight.my_plugins.dag_insight:DagInsightPlugin"

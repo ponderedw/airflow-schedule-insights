@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "airflow-dag-insight"
-version = "0.1.0-alpha.0"
+version = "0.1.0-alpha.3"
 description = "An Apache Airflow plugin that visualizes DAG runs in a Gantt chart, predicts future runs, and identifies tasks that won't execute. Enhance your workflow monitoring and planning with intuitive visualizations."
 license = "MIT"
 authors = ["Hipposys"]
@@ -15,6 +15,7 @@ SQLAlchemy = ">=1.4.0"
 [tool.poetry.dev-dependencies]
 flake8 = "^6.0"
 Flake8-pyproject = ">=1.2.0"
+sqlfluff = "^3.1.1"
 
 [tool.poetry.plugins."airflow.plugins"]
 dag-insight-plugin = "airflow_dag_insight.my_plugins.dag_insight:DagInsightPlugin"

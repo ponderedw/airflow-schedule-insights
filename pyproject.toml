@@ -16,12 +16,17 @@ SQLAlchemy = ">=1.4.0"
 flake8 = "^6.0"
 Flake8-pyproject = ">=1.2.0"
 sqlfluff = "^3.1.1"
+black = "==22.3.0"
 
 [tool.poetry.plugins."airflow.plugins"]
 dag-insight-plugin = "airflow_dag_insight.my_plugins.dag_insight:DagInsightPlugin"
 
+[tool.black]
+line-length = 88
+skip-string-normalization = false
+
 [tool.flake8]
-max-line-length = 140
+max-line-length = 88
 exclude = [
     ".git",
     "__pycache__",
@@ -33,8 +38,10 @@ exclude = [
 ]
 ignore = [
     "E203",
+    "E704",
     "W504",
-    "E126"
+    "E126",
+    "W503"
 ]
 max-complexity = 10
 show-source = true

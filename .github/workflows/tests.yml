@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       sql_query_changed: ${{ steps.filter.outputs.sql_query == 'true' }}
+      python_changed: ${{ steps.filter.outputs.python == 'true' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -23,6 +24,8 @@ jobs:
           filters: |
             sql_query:
               - 'airflow_dag_insight/my_plugins/helper/**.sql'
+            python:
+              - 'airflow_dag_insight/**.py'
 
   sql_lint:
     runs-on: ubuntu-latest
@@ -47,3 +50,29 @@ jobs:
         run: |
           source .venv/bin/activate
           sqlfluff lint airflow_dag_insight/my_plugins/helper
+
+  python_lint:
+    runs-on: ubuntu-latest
+    needs: filter
+    if: needs.filter.outputs.python_changed == 'true'
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Poetry
+        run: curl -sSL https://install.python-poetry.org | python3 -
+
+      - name: Install dependencies
+        run: poetry install
+      
+      - name: Test Sql Linting
+        run: |
+          source .venv/bin/activate
+          flake8 airflow_dag_insight
+          black --check airflow_dag_insight
+

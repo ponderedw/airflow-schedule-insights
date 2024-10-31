@@ -2,6 +2,9 @@
 
 The Airflow DAG Insight Plugin for [Apache Airflow](https://github.com/apache/airflow) allows you to visualize DAG runs in a Gantt chart, predict future runs, and identify DAGs that won't run, providing a seamless and efficient workflow for managing your pipelines. Enhance your workflow monitoring and planning with intuitive visualizations.
 
+[![Tests Status](https://github.com/hipposys-ltd/airflow-dag-insight/workflows/Tests/badge.svg)](https://github.com/hipposys-ltd/airflow-dag-insight/actions)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 ## System Requirements
 
 - **Airflow Versions**: 2.4.0 or newer

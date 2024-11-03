@@ -1079,6 +1079,7 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
             filter_values=filter_values,
             not_running_dags=self.not_running_dags,
             future_runs=self.future_runs,
+            client_timezone=client_timezone
         )
 
 

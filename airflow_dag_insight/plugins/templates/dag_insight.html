@@ -191,7 +191,7 @@
                       {% for row in future_runs %}
                       <tr>
                         <td>
-                          <div>{{ row.dag_id }}</div>
+                            <div><a href="/dags/{{ row.dag_id }}" target="_blank">{{ row.dag_id }}</a></div>
                         </td>
                         <td>
                           {{ row.start_time }}
@@ -236,7 +236,7 @@
                       {% for row in not_running_dags %}
                       <tr>
                         <td>
-                          <div>{{ row.dag_id }}</div>
+                          <div><a href="/dags/{{ row.dag_id }}" target="_blank">{{ row.dag_id }}</a></div>
                         </td>
                         <td>
                           {{ row.description }}
@@ -353,11 +353,21 @@
     
         // Tooltip for bars
         const tooltip = d3.select("body").append("div").attr("class", "tooltip");
-    
+        
+        // svg.call(d3.zoom()
+        //     .scaleExtent([1, 10])
+        //     .translateExtent([[0, 0], [width, height]])
+        //     .on("zoom", zoomed));
         // Add bars for each task run with clipping
         const bars = svg.selectAll(".bar")
             .data(dagsData)
-            .enter().append("rect")
+            .enter().append("g") // Create a group for each bar
+            .attr("class", "bar-group");
+
+        bars.append("a") // Wrap the bar in an <a> element for linking
+            .attr("href", d => `/dags/${d.dag_id}`) // Replace with your desired link
+            .attr("target", "_blank") // Open the link in a new tab
+            .append("rect")
             .attr("class", d => `bar ${d.state} ${d.manual_run ? 'manual-run' : ''}`)
             .attr("x", d => x(new Date(d.start_time)))
             .attr("y", d => y(d.dag_id))
@@ -373,17 +383,24 @@
             .on("mouseout", function (d) {
                 tooltip.transition().duration(500).style("opacity", 0);
             });
+        
+        bars.append("a") // Wrap the bar in an <a> element for linking
+            .attr("href", d => `/dags/${d.dag_id}`) // Replace with your desired link
+            .attr("target", "_blank")
     
         // Zoom behavior
         function zoomed(event) {
-            const newX = event.transform.rescaleX(x); // Update X scale
-            xAxisGroup.call(d3.axisBottom(newX).ticks(6).tickFormat(d3.timeFormat("%m-%d %H:%M"))); // Update X axis
-    
+            const newX = event.transform.rescaleX(x); // Rescale the X scale
+
+            // Update the X axis
+            xAxisGroup.call(d3.axisBottom(newX).ticks(6).tickFormat(d3.timeFormat("%m-%d %H:%M"))); 
+
             // Update the position and width of bars
-            bars.attr("x", d => newX(new Date(d.start_time)))
+            bars.select("rect") // Select the rectangles within the bars
+                .attr("x", d => newX(new Date(d.start_time)))
                 .attr("width", d => newX(new Date(d.end_time)) - newX(new Date(d.start_time)));
-    
-            // Update the position of the horizontal lines
+
+            // Update the position of the horizontal lines if you have any
             svg.selectAll(".line-separator")
                 .attr("x1", 0)
                 .attr("x2", width)

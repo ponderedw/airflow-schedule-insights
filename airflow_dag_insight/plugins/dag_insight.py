@@ -214,12 +214,13 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
             4. Updates the start time based on the dependency's end date if necessary.
             5. Returns the calculated start time and associated path.
         """
+        trigger_id = dep["trigger_id"]
         if dep["ind_leaf"]:
             start_time = dep["trigger_end_date"]  # Take next run of scheduled DAG
-            path = dep["trigger_id"] if dep["trigger_type"] == "DAG" else ""
+            path = trigger_id if dep["trigger_type"] == "DAG" else ""
         else:
             start_time, path = self.calculate_events_end_dates(
-                dep["trigger_id"],
+                trigger_id,
                 dep["trigger_type"],
                 start_dt,
                 end_dt,
@@ -228,10 +229,10 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
             if start_time is None:
                 start_time = dep["trigger_end_date"]
                 if dep["trigger_end_date"]:
-                    path = dep["trigger_id"] if dep["trigger_type"] == "DAG" else ""
+                    path = trigger_id if dep["trigger_type"] == "DAG" else ""
             elif dep["trigger_end_date"] is not None:
                 if dep["trigger_end_date"] < start_time:
-                    path = dep["trigger_id"] if dep["trigger_type"] == "DAG" else ""
+                    path = trigger_id if dep["trigger_type"] == "DAG" else ""
                 start_time = min(dep["trigger_end_date"], start_time)
         return (start_time, path)
 
@@ -280,14 +281,15 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
         )
         for dep in deps:
             start_time, path = self.get_dependency_end_time(dep, start_dt, end_dt)
+            run_type = ("trigger" if dep["dep_type"] == "DAG" and
+                        dep["trigger_type"] == "DAG"
+                        else "dataset")
             if start_time is not None:
                 start_times.append(
                     {
                         "start_time": start_time,
-                        "run_type": "trigger"
-                        if dep["dep_type"] == "DAG" and dep["trigger_type"] == "DAG"
-                        else "dataset",
-                        "path": path + " -> " + dep["dep_id"]
+                        "run_type": run_type,
+                        "path": f"{path} ({run_type})" + " -> " + dep["dep_id"]
                         if dep["dep_type"] == "DAG"
                         else path,
                     }

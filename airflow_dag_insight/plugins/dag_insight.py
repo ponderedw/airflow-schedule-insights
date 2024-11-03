@@ -635,7 +635,7 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
             if leaf["dep_is_paused"]:
                 description = "The DAG is paused"
             else:
-                description = "DAG doesn't have a schedule or other dependencies"
+                description = "The DAG doesn't have a schedule or other dependencies"
             self.not_running_dags.append(
                 {
                     "dag_id": leaf["dep_id"],

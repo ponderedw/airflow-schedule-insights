@@ -145,7 +145,14 @@
 <body>
 
     <h1>DAG Insight</h1>
-    <h2>{{ client_timezone }} Timezone</h2>
+    <h2 id="timezone-header">Timezone</h2>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+          const timezoneHeader = document.getElementById("timezone-header");
+          const clientTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          timezoneHeader.textContent = `${clientTimezone} Timezone`;
+        });
+    </script>
     <!-- Date Filter Form -->
     <form id="date-filter-form" action="{{ url_for('DagInsightAppBuilderBaseView.dag_insight') }}" method="get">
         <div class="form-group">
@@ -194,10 +201,10 @@
                         <td>
                             <div><a href="/dags/{{ row.dag_id }}" target="_blank">{{ row.dag_id }}</a></div>
                         </td>
-                        <td>
+                        <td class="table-date" table-data-date="{{ row.start_time }}">
                           {{ row.start_time }}
                         </td>
-                        <td>
+                        <td class="table-date" table-data-date="{{ row.end_time }}">
                             {{ row.end_time }}
                         </td>
                         <td>
@@ -419,6 +426,13 @@
         });
     </script>
     <script>
+        document.querySelectorAll('.table-date').forEach(cell => {
+            const dateValue = cell.getAttribute('table-data-date');
+            const formattedDate = new Date(dateValue).toLocaleString();
+            cell.textContent = formattedDate; // Replace the cell text with the formatted date
+        });
+    </script>
+    <script>
         document.addEventListener('DOMContentLoaded', function() {
             const startInput = document.getElementById('start-datetime');
             const endInput = document.getElementById('end-datetime');
@@ -453,6 +467,7 @@
             }
         });
         </script>
+        
 
         
         

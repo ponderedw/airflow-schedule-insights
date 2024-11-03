@@ -845,6 +845,11 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
                     dags_data.append(dag_info)
         return dags_data
 
+    def format_datetime_columns_future_runs(self):
+        for future_run in self.future_runs:
+            future_run['start_time'] = future_run['start_time'].isoformat()
+            future_run['end_time'] = future_run['end_time'].isoformat()
+
     def update_predicted_runs(self, start_dt: datetime, end_dt: datetime) -> None:
         """Updates predictions for future DAG runs within a given date range.
 
@@ -872,6 +877,7 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
         dags_data = self.get_scheduled_dags_meta(start_dt, end_dt)
         self.update_event_driven_runs_metadata(start_dt, end_dt)
         self.future_runs = dags_data + self.future_runs
+        self.format_datetime_columns_future_runs()
         self.future_runs = sorted(self.future_runs, key=lambda x: x["start_time"])
 
     def get_past_dag_runs(self, start_dt, end_dt):
@@ -1078,8 +1084,7 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
             dags_data=dags_data,
             filter_values=filter_values,
             not_running_dags=self.not_running_dags,
-            future_runs=self.future_runs,
-            client_timezone=client_timezone
+            future_runs=self.future_runs
         )
 
 

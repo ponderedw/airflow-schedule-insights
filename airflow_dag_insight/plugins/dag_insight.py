@@ -281,9 +281,11 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
         )
         for dep in deps:
             start_time, path = self.get_dependency_end_time(dep, start_dt, end_dt)
-            run_type = ("trigger" if dep["dep_type"] == "DAG" and
-                        dep["trigger_type"] == "DAG"
-                        else "dataset")
+            run_type = (
+                "trigger"
+                if dep["dep_type"] == "DAG" and dep["trigger_type"] == "DAG"
+                else "dataset"
+            )
             if start_time is not None:
                 start_times.append(
                     {
@@ -847,8 +849,8 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
 
     def format_datetime_columns_future_runs(self):
         for future_run in self.future_runs:
-            future_run['start_time'] = future_run['start_time'].isoformat()
-            future_run['end_time'] = future_run['end_time'].isoformat()
+            future_run["start_time"] = future_run["start_time"].isoformat()
+            future_run["end_time"] = future_run["end_time"].isoformat()
 
     def update_predicted_runs(self, start_dt: datetime, end_dt: datetime) -> None:
         """Updates predictions for future DAG runs within a given date range.
@@ -1084,24 +1086,26 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
             dags_data=dags_data,
             filter_values=filter_values,
             not_running_dags=self.not_running_dags,
-            future_runs=self.future_runs
+            future_runs=self.future_runs,
         )
 
     @expose("/get_future_runs_json")
     def get_future_runs_json(self):
         start, end, client_timezone, show_future_runs = self.get_params_from_request()
-        timedelta_filter_hours = int(request.args.get("timedelta_filter_hours", '24'))
+        timedelta_filter_hours = int(request.args.get("timedelta_filter_hours", "24"))
         dag_id = request.args.get("dag_id")
         start = datetime.now(timezone.utc).isoformat()
-        end = (datetime.now(timezone.utc) +
-               timedelta(hours=timedelta_filter_hours)).isoformat()
+        end = (
+            datetime.now(timezone.utc) + timedelta(hours=timedelta_filter_hours)
+        ).isoformat()
         start_dt, end_dt, end_of_time_dt = self.get_filter_dates(
             start, end, client_timezone
         )
         self.update_predicted_runs(start_dt, end_dt)
         if dag_id:
-            self.future_runs = [run for run in self.future_runs
-                                if run['dag_id'] == dag_id]
+            self.future_runs = [
+                run for run in self.future_runs if run["dag_id"] == dag_id
+            ]
         return jsonify(self.future_runs)
 
     @expose("/get_missing_future_runs_json")
@@ -1114,8 +1118,9 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
         )
         self.update_predicted_runs(start_dt, end_dt)
         if dag_id:
-            self.not_running_dags = [run for run in self.not_running_dags
-                                     if run['dag_id'] == dag_id]
+            self.not_running_dags = [
+                run for run in self.not_running_dags if run["dag_id"] == dag_id
+            ]
         return jsonify(self.not_running_dags)
 
 

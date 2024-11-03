@@ -19,7 +19,7 @@ sqlfluff = "^3.1.1"
 black = "==22.3.0"
 
 [tool.poetry.plugins."airflow.plugins"]
-dag-insight-plugin = "airflow_dag_insight.my_plugins.dag_insight:DagInsightPlugin"
+dag-insight-plugin = "airflow_dag_insight.plugins.dag_insight:DagInsightPlugin"
 
 [tool.black]
 line-length = 88

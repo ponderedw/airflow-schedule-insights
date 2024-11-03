@@ -144,28 +144,36 @@
 </head>
 <body>
 
-    <h2>DAG Insight</h2>
+    <h1>DAG Insight</h1>
+    <h2 id="timezone-header">Timezone</h2>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+          const timezoneHeader = document.getElementById("timezone-header");
+          const clientTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          timezoneHeader.textContent = `${clientTimezone} Timezone`;
+        });
+    </script>
     <!-- Date Filter Form -->
     <form id="date-filter-form" action="{{ url_for('DagInsightAppBuilderBaseView.dag_insight') }}" method="get">
         <div class="form-group">
             <label for="start-datetime">From:</label>
-            <input type="datetime-local" id="start-datetime" name="start" value="{{ time_filter.get('start', '') }}">
+            <input type="datetime-local" id="start-datetime" name="start" value="{{ filter_values.get('start', '') }}">
         </div>
         
         <div class="form-group">
             <label for="end-datetime">To:</label>
-            <input type="datetime-local" id="end-datetime" name="end" value="{{ time_filter.get('end', '') }}" max="{{ time_filter.get('max_end', '') }}">
+            <input type="datetime-local" id="end-datetime" name="end" value="{{ filter_values.get('end', '') }}" max="{{ filter_values.get('max_end', '') }}">
         </div>
 
         <div class="form-group">
             <label for="show-future-runs">Show Future Runs?</label>
-            <input type="checkbox" id="show-future-runs" name="show_future_runs" value="true" {% if time_filter.get('show_future_runs', '') %}checked{% endif %}>
+            <input type="checkbox" id="show-future-runs" name="show_future_runs" value="true" {% if filter_values.get('show_future_runs', '') %}checked{% endif %}>
         </div>
         <input type="hidden" id="timezone" name="timezone" value="">
         <button type="submit" class="btn btn-primary">Update</button>
     </form>
     
-    {% if time_filter.get('show_future_runs', '') == 'true' %}
+    {% if filter_values.get('show_future_runs', '') == 'true' %}
     <div class="dags-table-body">
         <div class="panel panel-default">
           <div class="panel-heading">
@@ -191,12 +199,12 @@
                       {% for row in future_runs %}
                       <tr>
                         <td>
-                          <div>{{ row.dag_id }}</div>
+                            <div><a href="/dags/{{ row.dag_id }}" target="_blank">{{ row.dag_id }}</a></div>
                         </td>
-                        <td>
+                        <td class="table-date" table-data-date="{{ row.start_time }}">
                           {{ row.start_time }}
                         </td>
-                        <td>
+                        <td class="table-date" table-data-date="{{ row.end_time }}">
                             {{ row.end_time }}
                         </td>
                         <td>
@@ -236,7 +244,7 @@
                       {% for row in not_running_dags %}
                       <tr>
                         <td>
-                          <div>{{ row.dag_id }}</div>
+                          <div><a href="/dags/{{ row.dag_id }}" target="_blank">{{ row.dag_id }}</a></div>
                         </td>
                         <td>
                           {{ row.description }}
@@ -267,14 +275,14 @@
         const chartElement = d3.select("#gantt-chart");
     
         // Pass the task data from Python to JavaScript
-        const taskData = {{ task_data | tojson }};
+        const dagsData = {{ dags_data | tojson }};
     
         // Create scales and axes
         const margin = { top: 20, right: 30, bottom: 40, left: 200 };
         const width = 1400 - margin.left - margin.right;
         const heightPerTask = 20;
 
-        const distinctTaskIds = Array.from(new Set(taskData.map(d => d.dag_id)));
+        const distinctTaskIds = Array.from(new Set(dagsData.map(d => d.dag_id)));
 
         // Step 2
         const svgHeight = Math.max(distinctTaskIds.length * heightPerTask);
@@ -283,8 +291,8 @@
         const x = d3.scaleTime()
             .range([0, width])
             .domain([
-                d3.min(taskData, d => new Date(d.start_time)),
-                d3.max(taskData, d => new Date(d.end_time))
+                d3.min(dagsData, d => new Date(d.start_time)),
+                d3.max(dagsData, d => new Date(d.end_time))
             ]);
     
         const y = d3.scaleBand()
@@ -342,7 +350,7 @@
     
         // Horizontal lines for task separation (draw inside the clip area)
         svg.selectAll(".line-separator")
-            .data(Array.from(new Set(taskData.map(d => d.dag_id))))
+            .data(Array.from(new Set(dagsData.map(d => d.dag_id))))
             .enter().append("line")
             .attr("class", "line-separator")
             .attr("x1", 0)
@@ -353,11 +361,21 @@
     
         // Tooltip for bars
         const tooltip = d3.select("body").append("div").attr("class", "tooltip");
-    
+        
+        // svg.call(d3.zoom()
+        //     .scaleExtent([1, 10])
+        //     .translateExtent([[0, 0], [width, height]])
+        //     .on("zoom", zoomed));
         // Add bars for each task run with clipping
         const bars = svg.selectAll(".bar")
-            .data(taskData)
-            .enter().append("rect")
+            .data(dagsData)
+            .enter().append("g") // Create a group for each bar
+            .attr("class", "bar-group");
+
+        bars.append("a") // Wrap the bar in an <a> element for linking
+            .attr("href", d => `/dags/${d.dag_id}`) // Replace with your desired link
+            .attr("target", "_blank") // Open the link in a new tab
+            .append("rect")
             .attr("class", d => `bar ${d.state} ${d.manual_run ? 'manual-run' : ''}`)
             .attr("x", d => x(new Date(d.start_time)))
             .attr("y", d => y(d.dag_id))
@@ -373,17 +391,24 @@
             .on("mouseout", function (d) {
                 tooltip.transition().duration(500).style("opacity", 0);
             });
+        
+        bars.append("a") // Wrap the bar in an <a> element for linking
+            .attr("href", d => `/dags/${d.dag_id}`) // Replace with your desired link
+            .attr("target", "_blank")
     
         // Zoom behavior
         function zoomed(event) {
-            const newX = event.transform.rescaleX(x); // Update X scale
-            xAxisGroup.call(d3.axisBottom(newX).ticks(6).tickFormat(d3.timeFormat("%m-%d %H:%M"))); // Update X axis
-    
+            const newX = event.transform.rescaleX(x); // Rescale the X scale
+
+            // Update the X axis
+            xAxisGroup.call(d3.axisBottom(newX).ticks(6).tickFormat(d3.timeFormat("%m-%d %H:%M"))); 
+
             // Update the position and width of bars
-            bars.attr("x", d => newX(new Date(d.start_time)))
+            bars.select("rect") // Select the rectangles within the bars
+                .attr("x", d => newX(new Date(d.start_time)))
                 .attr("width", d => newX(new Date(d.end_time)) - newX(new Date(d.start_time)));
-    
-            // Update the position of the horizontal lines
+
+            // Update the position of the horizontal lines if you have any
             svg.selectAll(".line-separator")
                 .attr("x1", 0)
                 .attr("x2", width)
@@ -398,6 +423,13 @@
     
             // Set the timezone value in the hidden input field
             document.getElementById('timezone').value = timezone;
+        });
+    </script>
+    <script>
+        document.querySelectorAll('.table-date').forEach(cell => {
+            const dateValue = cell.getAttribute('table-data-date');
+            const formattedDate = new Date(dateValue).toLocaleString();
+            cell.textContent = formattedDate; // Replace the cell text with the formatted date
         });
     </script>
     <script>
@@ -422,8 +454,8 @@
             }
         
             // Get values directly from the server-side context
-            const startTimeWithTimezone = "{{ time_filter.get('start', '') }}";
-            const endTimeWithTimezone = "{{ time_filter.get('end', '') }}";
+            const startTimeWithTimezone = "{{ filter_values.get('start', '') }}";
+            const endTimeWithTimezone = "{{ filter_values.get('end', '') }}";
         
             // Convert and set values
             if (startTimeWithTimezone) {
@@ -435,6 +467,7 @@
             }
         });
         </script>
+        
 
         
         

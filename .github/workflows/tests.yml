@@ -49,7 +49,7 @@ jobs:
       - name: Test Sql Linting
         run: |
           source .venv/bin/activate
-          sqlfluff lint airflow_dag_insight/my_plugins/helper
+          sqlfluff lint airflow_dag_insight/plugins/helper
 
   python_lint:
     runs-on: ubuntu-latest

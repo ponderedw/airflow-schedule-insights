@@ -3,14 +3,14 @@ version: "3.5"
 x-airflow-common:
   &airflow-common
   build:
-    context: .
-    dockerfile: .Dockerfile
+    context: ..
+    dockerfile: local_airflow/.Dockerfile
   user: "${AIRFLOW_UID}:0"
   env_file:
     - common-airflow.env
   volumes:
-    - ./dags:/opt/airflow/dags
-    - ../airflow_dag_insight/my_plugins:/opt/airflow/plugins
+    - ./local_airflow/dags:/opt/airflow/dags
+    - ./airflow_dag_insight/my_plugins:/opt/airflow/plugins
 
 x-airflow_depends_on:
   &airflow-depends-on

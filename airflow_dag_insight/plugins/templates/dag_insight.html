@@ -149,23 +149,23 @@
     <form id="date-filter-form" action="{{ url_for('DagInsightAppBuilderBaseView.dag_insight') }}" method="get">
         <div class="form-group">
             <label for="start-datetime">From:</label>
-            <input type="datetime-local" id="start-datetime" name="start" value="{{ time_filter.get('start', '') }}">
+            <input type="datetime-local" id="start-datetime" name="start" value="{{ filter_values.get('start', '') }}">
         </div>
         
         <div class="form-group">
             <label for="end-datetime">To:</label>
-            <input type="datetime-local" id="end-datetime" name="end" value="{{ time_filter.get('end', '') }}" max="{{ time_filter.get('max_end', '') }}">
+            <input type="datetime-local" id="end-datetime" name="end" value="{{ filter_values.get('end', '') }}" max="{{ filter_values.get('max_end', '') }}">
         </div>
 
         <div class="form-group">
             <label for="show-future-runs">Show Future Runs?</label>
-            <input type="checkbox" id="show-future-runs" name="show_future_runs" value="true" {% if time_filter.get('show_future_runs', '') %}checked{% endif %}>
+            <input type="checkbox" id="show-future-runs" name="show_future_runs" value="true" {% if filter_values.get('show_future_runs', '') %}checked{% endif %}>
         </div>
         <input type="hidden" id="timezone" name="timezone" value="">
         <button type="submit" class="btn btn-primary">Update</button>
     </form>
     
-    {% if time_filter.get('show_future_runs', '') == 'true' %}
+    {% if filter_values.get('show_future_runs', '') == 'true' %}
     <div class="dags-table-body">
         <div class="panel panel-default">
           <div class="panel-heading">
@@ -267,7 +267,7 @@
         const chartElement = d3.select("#gantt-chart");
     
         // Pass the task data from Python to JavaScript
-        const taskData = {{ task_data | tojson }};
+        const taskData = {{ dags_data | tojson }};
     
         // Create scales and axes
         const margin = { top: 20, right: 30, bottom: 40, left: 200 };
@@ -422,8 +422,8 @@
             }
         
             // Get values directly from the server-side context
-            const startTimeWithTimezone = "{{ time_filter.get('start', '') }}";
-            const endTimeWithTimezone = "{{ time_filter.get('end', '') }}";
+            const startTimeWithTimezone = "{{ filter_values.get('start', '') }}";
+            const endTimeWithTimezone = "{{ filter_values.get('end', '') }}";
         
             // Convert and set values
             if (startTimeWithTimezone) {

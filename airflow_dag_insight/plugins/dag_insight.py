@@ -1,5 +1,5 @@
 from airflow.plugins_manager import AirflowPlugin
-from flask import Blueprint, request, redirect, url_for
+from flask import Blueprint, request, redirect, url_for, jsonify
 from flask_appbuilder import expose, BaseView as AppBuilderBaseView
 from airflow import settings
 from airflow.models import DagRun, DagModel
@@ -1086,6 +1086,17 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
             not_running_dags=self.not_running_dags,
             future_runs=self.future_runs
         )
+
+    @expose("/get_future_runs_json")
+    def get_future_runs_json(self):
+        start, end, client_timezone, show_future_runs = self.get_params_from_request()
+        start = datetime.now(timezone.utc).isoformat()
+        end = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
+        start_dt, end_dt, end_of_time_dt = self.get_filter_dates(
+            start, end, client_timezone
+        )
+        self.update_predicted_runs(start_dt, end_dt)
+        return jsonify(self.future_runs)
 
 
 v_appbuilder_view = DagInsightAppBuilderBaseView()

@@ -267,14 +267,14 @@
         const chartElement = d3.select("#gantt-chart");
     
         // Pass the task data from Python to JavaScript
-        const taskData = {{ dags_data | tojson }};
+        const dagsData = {{ dags_data | tojson }};
     
         // Create scales and axes
         const margin = { top: 20, right: 30, bottom: 40, left: 200 };
         const width = 1400 - margin.left - margin.right;
         const heightPerTask = 20;
 
-        const distinctTaskIds = Array.from(new Set(taskData.map(d => d.dag_id)));
+        const distinctTaskIds = Array.from(new Set(dagsData.map(d => d.dag_id)));
 
         // Step 2
         const svgHeight = Math.max(distinctTaskIds.length * heightPerTask);
@@ -283,8 +283,8 @@
         const x = d3.scaleTime()
             .range([0, width])
             .domain([
-                d3.min(taskData, d => new Date(d.start_time)),
-                d3.max(taskData, d => new Date(d.end_time))
+                d3.min(dagsData, d => new Date(d.start_time)),
+                d3.max(dagsData, d => new Date(d.end_time))
             ]);
     
         const y = d3.scaleBand()
@@ -342,7 +342,7 @@
     
         // Horizontal lines for task separation (draw inside the clip area)
         svg.selectAll(".line-separator")
-            .data(Array.from(new Set(taskData.map(d => d.dag_id))))
+            .data(Array.from(new Set(dagsData.map(d => d.dag_id))))
             .enter().append("line")
             .attr("class", "line-separator")
             .attr("x1", 0)
@@ -356,7 +356,7 @@
     
         // Add bars for each task run with clipping
         const bars = svg.selectAll(".bar")
-            .data(taskData)
+            .data(dagsData)
             .enter().append("rect")
             .attr("class", d => `bar ${d.state} ${d.manual_run ? 'manual-run' : ''}`)
             .attr("x", d => x(new Date(d.start_time)))

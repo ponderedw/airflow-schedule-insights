@@ -346,12 +346,20 @@ all_dependencies_enriched as (
             when
                 coalesce(dnr.start_date + ted.duration, dnr.end_date) is null
                 then null
+            else dnr.start_date
+        end as trigger_start_date,
+        case
+            when
+                coalesce(dnr.start_date + ted.duration, dnr.end_date) is null
+                then null
             when
                 coalesce(dnr.start_date + ted.duration, dnr.end_date)
                 < current_timestamp
                 then current_timestamp
             else coalesce(dnr.start_date + ted.duration, dnr.end_date)
         end as trigger_end_date,
+        ted.duration as trigger_ted_duration,
+        dnr.end_date as dag_trigger_end_date,
         dd.owners as deps_owners,
         not coalesce(sd.dag_id is null, false) as ind_dep_scheduled
     from
@@ -414,7 +422,10 @@ select
     null as trigger_event_mean_duration,
     null as trigger_is_paused,
     null as trigger_is_active,
+    null as trigger_start_date,
     null as trigger_end_date,
+    null as trigger_ted_duration,
+    null as dag_trigger_end_date,
     owners as deps_owners,
     null as ind_scheduled,
     null as ind_root,

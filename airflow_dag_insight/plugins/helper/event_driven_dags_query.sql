@@ -358,8 +358,8 @@ all_dependencies_enriched as (
                 then current_timestamp
             else coalesce(dnr.start_date + ted.duration, dnr.end_date)
         end as trigger_end_date,
-        ted.duration trigger_ted_duration,
-        dnr.end_date dag_trigger_end_date,
+        ted.duration as trigger_ted_duration,
+        dnr.end_date as dag_trigger_end_date,
         dd.owners as deps_owners,
         not coalesce(sd.dag_id is null, false) as ind_dep_scheduled
     from

@@ -48,7 +48,7 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
         return None
 
     def predict_future_cron_runs(
-        self, cron_schedule, start_dt, end_dt, next_dagrun, max_runs=100
+        self, cron_schedule, start_dt, end_dt, next_dagrun, max_runs=1000
     ):
         # Initialize croniter with the cron schedule and start date
         if next_dagrun is None:

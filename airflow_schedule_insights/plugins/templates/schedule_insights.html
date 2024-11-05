@@ -52,7 +52,11 @@
         }
 
         .bar.forecast {
-            fill: rgb(77, 77, 77);
+            fill: rgba(9, 99, 155, 0.745);
+        }
+
+        .bar.schedule_simulator {
+            fill: rgba(126, 9, 155, 0.745);
         }
 
         .manual-run {
@@ -143,6 +147,28 @@
         .scheduleTable { width: 100%; border-collapse: collapse; }
         th, td { padding: 8px; text-align: left; border: 1px solid #ddd; }
         .error { color: red; font-size: 0.9em; }
+        .legend {
+            margin-bottom: 20px; /* Space between the legend and the Gantt chart */
+        }
+
+        .legend ul {
+            list-style-type: none; /* Remove bullet points */
+            padding: 0;
+            display: flex; /* Use flexbox to arrange items in a row */
+        }
+
+        .legend li {
+            display: flex; /* Align items in a row */
+            align-items: center; /* Center vertically */
+            margin-right: 15px; /* Space between legend items */
+        }
+
+        .legend .bar {
+            width: 20px; /* Width of the color box */
+            height: 20px; /* Height of the color box */
+            margin-right: 5px; /* Space between the color box and text */
+        }
+
     </style>
 </head>
 <body>
@@ -307,6 +333,15 @@
       {% endif %}
       
        
+    <div class="legend">
+        <ul>
+            <li><span class="bar failed" style="background-color: red;"></span> Failed</li>
+            <li><span class="bar success" style="background-color: green;"></span> Success</li>
+            <li><span class="bar running" style="background-color: orange;"></span> Running</li>
+            <li><span class="bar forecast" style="background-color: rgba(9, 99, 155, 0.745);"></span> Forecast</li>
+            <li><span class="bar schedule_simulator" style="background-color: rgba(126, 9, 155, 0.745);"></span> Schedule Simulator</li>
+        </ul>
+    </div>
 
     <div class="chart" id="gantt-chart"></div>
     <div class="main-content">

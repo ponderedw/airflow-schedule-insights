@@ -1115,7 +1115,8 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
         """Sets a default start time and redirects to `schedule_insights`.
 
         This default method calculates a `start` time as 4 hours before the current
-        UTC time and redirects to `schedule_insights`, passing this calculated `start` time.
+        UTC time and redirects to `schedule_insights`, passing this calculated `start`
+            time.
 
         Returns:
             werkzeug.wrappers.Response: Redirect response to `self.schedule_insights()`.

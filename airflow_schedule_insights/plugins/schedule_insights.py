@@ -1123,7 +1123,8 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
         time_limit = datetime.now(timezone.utc) - timedelta(hours=4)
         return redirect(
             url_for(
-                "ScheduleInsightsAppBuilderBaseView.schedule_insights", start=time_limit.isoformat()
+                "ScheduleInsightsAppBuilderBaseView.schedule_insights",
+                start=time_limit.isoformat(),
             )
         )
 

@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DAG Insight</title>
+    <title>Schedule Insides</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         body {
@@ -147,7 +147,7 @@
 </head>
 <body>
 
-    <h1>DAG Insight</h1>
+    <h1>Schedule Insides</h1>
     <h2 id="timezone-header">Timezone</h2>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
@@ -157,7 +157,7 @@
         });
     </script>
     <!-- Date Filter Form -->
-    <form id="date-filter-form" action="{{ url_for('DagInsightAppBuilderBaseView.dag_insight') }}" method="get">
+    <form id="date-filter-form" action="{{ url_for('ScheduleInsightsAppBuilderBaseView.schedule_insights') }}" method="get">
         <div class="form-group">
             <label for="start-datetime">From:</label>
             <input type="datetime-local" id="start-datetime" name="start" value="{{ filter_values.get('start', '') }}">

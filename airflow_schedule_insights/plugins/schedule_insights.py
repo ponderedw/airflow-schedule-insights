@@ -15,18 +15,18 @@ import numpy as np
 
 
 bp = Blueprint(
-    "dag_insight",
+    "schedule_insights",
     __name__,
     template_folder="templates",
     static_folder="static",
-    static_url_path="/static/airflow_dag_insight",
+    static_url_path="/static/airflow_schedule_insights",
 )
 session = settings.Session()
 
 
-class DagInsightAppBuilderBaseView(AppBuilderBaseView):
+class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
     default_view = "main"
-    route_base = "/dag_insight"
+    route_base = "/schedule_insights"
 
     def __init__(self):
         super().__init__()
@@ -1037,7 +1037,7 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
 
         Constructs a dictionary with formatted start, end, maximum end,
         and future run visibility indicators,
-        to be used as filters for DAG insights.
+        to be used as filters for Schedule Insidess.
 
         Args:
             start_dt (datetime): The starting datetime, formatted with minute precision.
@@ -1112,23 +1112,23 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
 
     @expose("/")
     def main(self):
-        """Sets a default start time and redirects to `dag_insight`.
+        """Sets a default start time and redirects to `schedule_insights`.
 
         This default method calculates a `start` time as 4 hours before the current
-        UTC time and redirects to `dag_insight`, passing this calculated `start` time.
+        UTC time and redirects to `schedule_insights`, passing this calculated `start` time.
 
         Returns:
-            werkzeug.wrappers.Response: Redirect response to `self.dag_insight()`.
+            werkzeug.wrappers.Response: Redirect response to `self.schedule_insights()`.
         """
         time_limit = datetime.now(timezone.utc) - timedelta(hours=4)
         return redirect(
             url_for(
-                "DagInsightAppBuilderBaseView.dag_insight", start=time_limit.isoformat()
+                "ScheduleInsightsAppBuilderBaseView.schedule_insights", start=time_limit.isoformat()
             )
         )
 
-    @expose("/dag_insight")
-    def dag_insight(self):
+    @expose("/schedule_insights")
+    def schedule_insights(self):
         """Visualizes past and future DAG runs
 
         Args:
@@ -1162,7 +1162,7 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
             start_dt, end_dt, show_future_runs, new_schedules
         )
         return self.render_template(
-            "dag_insight.html",
+            "schedule_insights.html",
             dags_data=dags_data,
             filter_values=filter_values,
             not_running_dags=self.not_running_dags,
@@ -1206,16 +1206,16 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
         return jsonify(self.not_running_dags)
 
 
-v_appbuilder_view = DagInsightAppBuilderBaseView()
+v_appbuilder_view = ScheduleInsightsAppBuilderBaseView()
 v_appbuilder_package = {
-    "name": "DAG Insight",
+    "name": "Schedule Insides",
     "category": "Browse",
     "view": v_appbuilder_view,
 }
 
 
-class DagInsightPlugin(AirflowPlugin):
-    name = "dag_insight"
+class ScheduleInsightsPlugin(AirflowPlugin):
+    name = "schedule_insights"
     hooks = []
     macros = []
     flask_blueprints = [bp]

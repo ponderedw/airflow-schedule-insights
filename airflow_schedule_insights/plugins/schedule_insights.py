@@ -1088,7 +1088,7 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
         start = request.args.get("start")
         end = request.args.get("end")
         client_timezone = request.args.get("timezone")
-        show_future_runs = request.args.get("show_future_runs")
+        show_future_runs = "true"  # request.args.get("show_future_runs")
         dag_names = request.args.getlist("dagName[]")
         cron_schedules = request.args.getlist("cronSchedule[]")
         new_schedules = [

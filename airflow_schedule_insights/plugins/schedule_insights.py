@@ -418,6 +418,7 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
                 "schedule_interval": path,
                 "run_type": final_start_time.get("run_type"),
                 "duration": str(dep_mean_duration).split(".")[0],
+                "ind_selected_dags": "non_selected_dags"
             }
         )
 
@@ -900,6 +901,7 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
                         "schedule_interval": timetable_description,
                         "run_type": "scheduled",
                         "duration": str(dag.duration).split(".")[0],
+                        "ind_selected_dags": "not_selected_dags"
                     }
                     dags_data.append(dag_info)
         return dags_data
@@ -998,6 +1000,7 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
                 if dag_model
                 else datetime.now(timezone.utc),
                 "run_type": run.run_type,
+                "ind_selected_dags": "non_selected_dags"
             }
             dag_info["duration"] = str(
                 datetime.fromisoformat(dag_info["end_time"])

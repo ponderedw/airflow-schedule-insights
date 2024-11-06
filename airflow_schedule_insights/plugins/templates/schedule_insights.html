@@ -168,11 +168,11 @@
             height: 20px; /* Height of the color box */
             margin-right: 5px; /* Space between the color box and text */
         }
-        /* .legend .selected_dags {
-            border: 2px solid rgba(2, 255, 213, 0.817);
-            background-color: transparent;
-        } */
         .legend .selected_dags {
+            border: 2px solid rgb(59, 59, 59);
+            background-color: transparent;
+        }
+        /* .legend .selected_dags {
             background: repeating-linear-gradient(
                 45deg,
                 rgba(99, 99, 99, 0.7),
@@ -181,6 +181,10 @@
                 transparent 3px
             );
             border: 1px solid rgba(99, 99, 99, 0.7);
+        } */
+        .bar.selected_dags {
+            stroke: rgb(59, 59, 59);
+            stroke-width: 2px;
         }
  
     </style>
@@ -473,7 +477,7 @@
             .attr("href", d => `/dags/${d.dag_id}`) // Replace with your desired link
             .attr("target", "_blank") // Open the link in a new tab
             .append("rect")
-            .attr("class", d => `bar ${d.state} ${d.manual_run ? 'manual-run' : ''}`)
+            .attr("class", d => `bar ${d.state} ${d.ind_selected_dags} ${d.manual_run ? 'manual-run' : ''}`)
             .attr("x", d => x(new Date(d.start_time)))
             .attr("y", d => y(d.dag_id))
             .attr("width", d => x(new Date(d.end_time)) - x(new Date(d.start_time)))

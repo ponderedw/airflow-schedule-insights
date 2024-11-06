@@ -168,7 +168,21 @@
             height: 20px; /* Height of the color box */
             margin-right: 5px; /* Space between the color box and text */
         }
-
+        /* .legend .selected_dags {
+            border: 2px solid rgba(2, 255, 213, 0.817);
+            background-color: transparent;
+        } */
+        .legend .selected_dags {
+            background: repeating-linear-gradient(
+                45deg,
+                rgba(99, 99, 99, 0.7),
+                rgba(99, 99, 99, 0.7) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            border: 1px solid rgba(99, 99, 99, 0.7);
+        }
+ 
     </style>
 </head>
 <body>
@@ -340,6 +354,7 @@
             <li><span class="bar running" style="background-color: orange;"></span> Running</li>
             <li><span class="bar forecast" style="background-color: rgba(9, 99, 155, 0.745);"></span> Forecast</li>
             <li><span class="bar schedule_simulator" style="background-color: rgba(126, 9, 155, 0.745);"></span> Schedule Simulator</li>
+            <li><span class="bar selected_dags"></span> Selected DAGs</li>
         </ul>
     </div>
 

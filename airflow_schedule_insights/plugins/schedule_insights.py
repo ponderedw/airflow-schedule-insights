@@ -408,6 +408,12 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
                or path.startswith(dag + ' ')
                or path.endswith(' ' + dag)):
                 state = 'schedule_simulator'
+        ind_selected_dags = "not_selected_dags"
+        for dag in self.selected_dags:
+            if (' ' + dag + ' ' in path
+               or path.startswith(dag + ' ')
+               or path.endswith(' ' + dag)):
+                ind_selected_dags = "selected_dags"
         self.future_runs.append(
             {
                 "dag_id": dag_id,
@@ -418,7 +424,7 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
                 "schedule_interval": path,
                 "run_type": final_start_time.get("run_type"),
                 "duration": str(dep_mean_duration).split(".")[0],
-                "ind_selected_dags": "non_selected_dags"
+                "ind_selected_dags": ind_selected_dags
             }
         )
 
@@ -879,6 +885,9 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
             next_run = dag.next_dagrun
             timetable_description = dag.timetable_description
             state = "forecast"
+            ind_selected_dags = "not_selected_dags"
+            if dag.dag_id in self.selected_dags:
+                ind_selected_dags = "selected_dags"
             for new_schedule in self.new_schedules:
                 if new_schedule["dag_name"] == dag.dag_id:
                     schedule_interval = new_schedule["cron_schedule"]
@@ -901,7 +910,7 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
                         "schedule_interval": timetable_description,
                         "run_type": "scheduled",
                         "duration": str(dag.duration).split(".")[0],
-                        "ind_selected_dags": "not_selected_dags"
+                        "ind_selected_dags": ind_selected_dags
                     }
                     dags_data.append(dag_info)
         return dags_data
@@ -987,6 +996,9 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
             dag_model = (
                 session.query(DagModel).filter(DagModel.dag_id == run.dag_id).first()
             )
+            ind_selected_dags = "not_selected_dags"
+            if run.dag_id in self.selected_dags:
+                ind_selected_dags = "selected_dags"
             # Create the dictionary for this DAG run
             dag_info = {
                 "dag_id": run.dag_id,
@@ -1000,7 +1012,7 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
                 if dag_model
                 else datetime.now(timezone.utc),
                 "run_type": run.run_type,
-                "ind_selected_dags": "non_selected_dags"
+                "ind_selected_dags": ind_selected_dags
             }
             dag_info["duration"] = str(
                 datetime.fromisoformat(dag_info["end_time"])
@@ -1104,6 +1116,7 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
         show_future_runs = "true"  # request.args.get("show_future_runs")
         dag_names = request.args.getlist("dagName[]")
         cron_schedules = request.args.getlist("cronSchedule[]")
+        self.selected_dags = request.args.getlist("selected_dags_filter[]")
         self.new_schedules = [
             {
                 "dag_name": dag,
@@ -1181,6 +1194,7 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
             future_runs=self.future_runs,
             all_active_dags=all_active_dags,
             new_schedules=self.new_schedules,
+            selected_dags=self.selected_dags,
         )
 
     @expose("/get_future_runs_json")

@@ -873,21 +873,22 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
         )
         return query
 
-    def add_scheduled_run_to_next_runs(self, dag, state, timetable_description,
-                                       ind_selected_dags, cron):
+    def add_scheduled_run_to_next_runs(
+        self, dag, state, timetable_description, ind_selected_dags, cron
+    ):
         cron = croniter(cron, datetime.now(timezone.utc))
         run = cron.get_next(datetime)
         dag_info = {
-                        "dag_id": dag.dag_id,
-                        "start_time": run if run else None,
-                        "end_time": (run + dag.duration) if run else None,
-                        "state": state,
-                        "owner": dag.owners,  # Fetch owner from conf or use 'unknown'
-                        "schedule_interval": timetable_description,
-                        "run_type": "scheduled",
-                        "duration": str(dag.duration).split(".")[0],
-                        "ind_selected_dags": ind_selected_dags,
-                    }
+            "dag_id": dag.dag_id,
+            "start_time": run if run else None,
+            "end_time": (run + dag.duration) if run else None,
+            "state": state,
+            "owner": dag.owners,  # Fetch owner from conf or use 'unknown'
+            "schedule_interval": timetable_description,
+            "run_type": "scheduled",
+            "duration": str(dag.duration).split(".")[0],
+            "ind_selected_dags": ind_selected_dags,
+        }
         self.update_next_runs_dict(dag_info)
 
     def get_scheduled_dags_meta(self, start_dt, end_dt):
@@ -947,8 +948,9 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
                     state = "schedule_simulator"
             cron = self.get_valid_cron(schedule_interval)
             if cron and not is_paused:
-                self.add_scheduled_run_to_next_runs(dag, state, timetable_description,
-                                                    ind_selected_dags, cron)
+                self.add_scheduled_run_to_next_runs(
+                    dag, state, timetable_description, ind_selected_dags, cron
+                )
                 future_runs = self.predict_future_cron_runs(
                     cron, start_dt, end_dt, next_run
                 )

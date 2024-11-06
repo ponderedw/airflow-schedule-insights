@@ -312,7 +312,8 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
                 )
             else:
                 failed_path = (
-                    path + " -> " + dep["dep_id"] if dep["dep_type"] == "DAG" else path
+                    path + f" ({run_type}) -> " + dep["dep_id"]
+                    if dep["dep_type"] == "DAG" else path
                 )
                 if condition_type == "all":
                     all_is_wrong = True

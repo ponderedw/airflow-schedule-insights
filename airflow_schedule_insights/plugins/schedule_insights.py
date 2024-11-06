@@ -15,24 +15,25 @@ import numpy as np
 
 
 bp = Blueprint(
-    "dag_insight",
+    "schedule_insights",
     __name__,
     template_folder="templates",
     static_folder="static",
-    static_url_path="/static/airflow_dag_insight",
+    static_url_path="/static/airflow_schedule_insights",
 )
 session = settings.Session()
 
 
-class DagInsightAppBuilderBaseView(AppBuilderBaseView):
+class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
     default_view = "main"
-    route_base = "/dag_insight"
+    route_base = "/schedule_insights"
 
     def __init__(self):
         super().__init__()
         self.event_driven_dags = []
         self.future_runs = []
-        self.not_running_dags = []
+        self.next_runs = []
+        self.new_schedules = []
 
     def is_valid_cron(self, cron_string):
         try:
@@ -48,7 +49,7 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
         return None
 
     def predict_future_cron_runs(
-        self, cron_schedule, start_dt, end_dt, next_dagrun, max_runs=100
+        self, cron_schedule, start_dt, end_dt, next_dagrun, max_runs=1000
     ):
         # Initialize croniter with the cron schedule and start date
         if next_dagrun is None:
@@ -311,7 +312,9 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
                 )
             else:
                 failed_path = (
-                    path + " -> " + dep["dep_id"] if dep["dep_type"] == "DAG" else path
+                    path + f" ({run_type}) -> " + dep["dep_id"]
+                    if dep["dep_type"] == "DAG"
+                    else path
                 )
                 if condition_type == "all":
                     all_is_wrong = True
@@ -363,7 +366,7 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
         ind_scheduled = first_dep["ind_dep_scheduled"]
         return (owners, condition_type, dep_mean_duration, dep_is_paused, ind_scheduled)
 
-    def update_future_missing_dags(self, dag_id, final_start_time):
+    def update_future_missing_dags(self, dag_id, final_start_time, owners):
         """Records missing DAGs that won't run in the future.
 
         This method appends a record to `not_running_dags` for a DAG that
@@ -374,16 +377,49 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
             final_start_time (dict): A dictionary containing details about
                 the final start time.
         """
-        self.not_running_dags.append(
+        self.next_runs.append(
             {
                 "dag_id": dag_id,
                 "description": final_start_time.get("description"),
                 "path": final_start_time.get("path"),
+                "owner": owners,
             }
         )
 
+    def update_next_runs_dict(self, row_v):
+        row = {
+            "dag_id": row_v["dag_id"],
+            "start_time": row_v["start_time"],
+            "end_time": row_v["end_time"],
+            "state": row_v["state"],
+            "owner": row_v["owner"],
+            "description": row_v["schedule_interval"],
+            "run_type": row_v["run_type"],
+            "duration": row_v["duration"],
+            "ind_selected_dags": row_v["ind_selected_dags"],
+        }
+        for index, item in enumerate(self.next_runs):
+            if item["dag_id"] == row["dag_id"]:
+                # Compare start_time values
+                if (
+                    item.get("start_time") is None
+                    or row["start_time"] < item["start_time"]
+                ):
+                    self.next_runs[index] = row
+                return  # Stop once we've found and handled the match
+        # Append the new_dict if no matching dag_id was found
+        self.next_runs.append(row)
+
     def update_future_runs(
-        self, dag_id, final_start_time, final_end_time, owners, path, dep_mean_duration
+        self,
+        dag_id,
+        final_start_time,
+        final_end_time,
+        owners,
+        path,
+        dep_mean_duration,
+        start_dt,
+        end_dt,
     ):
         """Records future runs of a DAG based on calculated start and end times.
 
@@ -399,18 +435,41 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
             path (str): The path associated with the DAG.
             dep_mean_duration (timedelta): The mean duration for the DAG run.
         """
-        self.future_runs.append(
-            {
-                "dag_id": dag_id,
-                "start_time": final_start_time.get("start_time"),
-                "end_time": final_end_time,
-                "state": "forecast",
-                "owner": owners,
-                "schedule_interval": path,
-                "run_type": final_start_time.get("run_type"),
-                "duration": str(dep_mean_duration).split(".")[0],
-            }
-        )
+        state = "forecast"
+        simulator_dags = [dag["dag_name"] for dag in self.new_schedules]
+        for dag in simulator_dags:
+            if (
+                " " + dag + " " in path
+                or path.startswith(dag + " ")
+                or path.endswith(" " + dag)
+            ):
+                state = "schedule_simulator"
+        ind_selected_dags = "not_selected_dags"
+        for dag in self.selected_dags:
+            if (
+                " " + dag + " " in path
+                or path.startswith(dag + " ")
+                or path.endswith(" " + dag)
+            ):
+                ind_selected_dags = "selected_dags"
+        row = {
+            "dag_id": dag_id,
+            "start_time": final_start_time.get("start_time"),
+            "end_time": final_end_time,
+            "state": state,
+            "owner": owners,
+            "schedule_interval": path,
+            "run_type": final_start_time.get("run_type"),
+            "duration": str(dep_mean_duration).split(".")[0],
+            "ind_selected_dags": ind_selected_dags,
+        }
+        if (
+            dag_id not in [dag["dag_id"] for dag in self.future_runs]
+            and final_start_time.get("start_time") <= end_dt
+            and final_end_time >= start_dt
+        ):
+            self.future_runs.append(row)
+        self.update_next_runs_dict(row)
 
     def update_future_metadata(
         self,
@@ -443,16 +502,11 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
         """
         if (
             final_start_time.get("start_time") is None
-            and dep_id not in [dag["dag_id"] for dag in self.not_running_dags]
+            and dep_id not in [dag["dag_id"] for dag in self.next_runs]
             and ind_scheduled is False
         ):
-            self.update_future_missing_dags(dep_id, final_start_time)
-        elif (
-            final_start_time.get("start_time") is not None
-            and dep_id not in [dag["dag_id"] for dag in self.future_runs]
-            and final_start_time.get("start_time") <= end_dt
-            and final_end_time >= start_dt
-        ):
+            self.update_future_missing_dags(dep_id, final_start_time, owners)
+        elif final_start_time.get("start_time") is not None:
             self.update_future_runs(
                 dep_id,
                 final_start_time,
@@ -460,6 +514,8 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
                 owners,
                 path,
                 dep_mean_duration,
+                start_dt,
+                end_dt,
             )
 
     def calculate_events_end_dates(
@@ -592,7 +648,7 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
         for root in roots:
             self.calculate_events_end_dates(root[0], root[1], start_dt, end_dt, None)
 
-    def update_event_driven_dags(self, new_schedules):
+    def update_event_driven_dags(self):
         """Updates `event_driven_dags` with data from
             a SQL query stored in an external file.
 
@@ -621,19 +677,14 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
         with open(datasets_predictions_query_path, "r") as query_f:
             datasets_predictions_query = query_f.read()
         df = pd.read_sql(text(datasets_predictions_query), session.connection())
-        if len(new_schedules) > 0:
-            changed_schedules_df = pd.DataFrame(new_schedules)
+        if len(self.new_schedules) > 0:
+            changed_schedules_df = pd.DataFrame(self.new_schedules)
             df = df.merge(
                 changed_schedules_df,
                 left_on="trigger_id",
                 right_on="dag_name",
                 how="left",
             )
-            print("DATATATATATATTA")
-            print(df)
-            print(df.columns)
-            print(changed_schedules_df)
-            print(changed_schedules_df.columns)
             df["next_custom_run_date"] = np.where(
                 df["trigger_type"] == "DAG", df["next_custom_run_date"], np.nan
             )
@@ -672,17 +723,16 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
                 description = "The DAG is paused"
             else:
                 description = "The DAG doesn't have a schedule or other dependencies"
-            self.not_running_dags.append(
+            self.next_runs.append(
                 {
                     "dag_id": leaf["dep_id"],
                     "description": description,
                     "path": leaf["dep_id"],
+                    "owner": leaf["deps_owners"],
                 }
             )
 
-    def update_event_driven_runs_metadata(
-        self, start_dt: datetime, end_dt: datetime, new_schedules: list
-    ):
+    def update_event_driven_runs_metadata(self, start_dt: datetime, end_dt: datetime):
         """Updates metadata for future runs of event-driven DAGs within a specified
             time range.
 
@@ -715,11 +765,10 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
 
         """
         self.future_runs = []
-        self.not_running_dags = []
-        self.update_event_driven_dags(new_schedules)
+        self.update_event_driven_dags()
         self.get_future_dependencies_runs(start_dt, end_dt)
         self.append_missing_future_independent_nodes_runs()
-        self.not_running_dags = sorted(self.not_running_dags, key=lambda x: x["dag_id"])
+        self.next_runs = sorted(self.next_runs, key=lambda x: x["dag_id"])
 
     def get_scheduled_dags_meta_query(self):
         """Constructs a query to fetch metadata and
@@ -824,7 +873,25 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
         )
         return query
 
-    def get_scheduled_dags_meta(self, start_dt, end_dt, new_schedules):
+    def add_scheduled_run_to_next_runs(
+        self, dag, state, timetable_description, ind_selected_dags, cron
+    ):
+        cron = croniter(cron, datetime.now(timezone.utc))
+        run = cron.get_next(datetime)
+        dag_info = {
+            "dag_id": dag.dag_id,
+            "start_time": run if run else None,
+            "end_time": (run + dag.duration) if run else None,
+            "state": state,
+            "owner": dag.owners,  # Fetch owner from conf or use 'unknown'
+            "schedule_interval": timetable_description,
+            "run_type": "scheduled",
+            "duration": str(dag.duration).split(".")[0],
+            "ind_selected_dags": ind_selected_dags,
+        }
+        self.update_next_runs_dict(dag_info)
+
+    def get_scheduled_dags_meta(self, start_dt, end_dt):
         """Fetches metadata for scheduled DAGs and
             predicts future runs within a date range.
         This method compiles and executes a SQL query
@@ -868,14 +935,22 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
             is_paused = dag.is_paused
             next_run = dag.next_dagrun
             timetable_description = dag.timetable_description
-            for new_schedule in new_schedules:
+            state = "forecast"
+            ind_selected_dags = "not_selected_dags"
+            if dag.dag_id in self.selected_dags:
+                ind_selected_dags = "selected_dags"
+            for new_schedule in self.new_schedules:
                 if new_schedule["dag_name"] == dag.dag_id:
                     schedule_interval = new_schedule["cron_schedule"]
                     is_paused = False
                     next_run = datetime.now(timezone.utc)
                     timetable_description = f"Simulator: {schedule_interval}"
+                    state = "schedule_simulator"
             cron = self.get_valid_cron(schedule_interval)
             if cron and not is_paused:
+                self.add_scheduled_run_to_next_runs(
+                    dag, state, timetable_description, ind_selected_dags, cron
+                )
                 future_runs = self.predict_future_cron_runs(
                     cron, start_dt, end_dt, next_run
                 )
@@ -884,23 +959,26 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
                         "dag_id": dag.dag_id,
                         "start_time": run if run else None,
                         "end_time": (run + dag.duration) if run else None,
-                        "state": "forecast",
+                        "state": state,
                         "owner": dag.owners,  # Fetch owner from conf or use 'unknown'
                         "schedule_interval": timetable_description,
                         "run_type": "scheduled",
                         "duration": str(dag.duration).split(".")[0],
+                        "ind_selected_dags": ind_selected_dags,
                     }
                     dags_data.append(dag_info)
         return dags_data
 
     def format_datetime_columns_future_runs(self):
+        for future_run in self.next_runs:
+            if future_run.get("start_time") and future_run.get("end_time"):
+                future_run["start_time"] = future_run["start_time"].isoformat()
+                future_run["end_time"] = future_run["end_time"].isoformat()
         for future_run in self.future_runs:
             future_run["start_time"] = future_run["start_time"].isoformat()
             future_run["end_time"] = future_run["end_time"].isoformat()
 
-    def update_predicted_runs(
-        self, start_dt: datetime, end_dt: datetime, new_schedules: list
-    ) -> None:
+    def update_predicted_runs(self, start_dt: datetime, end_dt: datetime) -> None:
         """Updates predictions for future DAG runs within a given date range.
 
         This method retrieves and aggregates metadata on both scheduled and event-driven
@@ -924,8 +1002,10 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
                 - `run_type` (str): The run type, typically "scheduled".
                 - `duration` (str): The estimated duration for the DAG run.
         """
-        dags_data = self.get_scheduled_dags_meta(start_dt, end_dt, new_schedules)
-        self.update_event_driven_runs_metadata(start_dt, end_dt, new_schedules)
+        self.future_runs = []
+        self.next_runs = []
+        dags_data = self.get_scheduled_dags_meta(start_dt, end_dt)
+        self.update_event_driven_runs_metadata(start_dt, end_dt)
         self.future_runs = dags_data + self.future_runs
         self.format_datetime_columns_future_runs()
         self.future_runs = sorted(self.future_runs, key=lambda x: x["start_time"])
@@ -974,6 +1054,9 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
             dag_model = (
                 session.query(DagModel).filter(DagModel.dag_id == run.dag_id).first()
             )
+            ind_selected_dags = "not_selected_dags"
+            if run.dag_id in self.selected_dags:
+                ind_selected_dags = "selected_dags"
             # Create the dictionary for this DAG run
             dag_info = {
                 "dag_id": run.dag_id,
@@ -987,6 +1070,7 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
                 if dag_model
                 else datetime.now(timezone.utc),
                 "run_type": run.run_type,
+                "ind_selected_dags": ind_selected_dags,
             }
             dag_info["duration"] = str(
                 datetime.fromisoformat(dag_info["end_time"])
@@ -1000,7 +1084,6 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
         start_dt: datetime,
         end_dt: datetime,
         show_future_runs: str,
-        new_schedules: list,
     ) -> list:
         """Fetches data for past and optionally future DAG runs
             within a specified date range.
@@ -1020,7 +1103,7 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
         """
         dags_data = self.get_past_dag_runs(start_dt, end_dt)
         if show_future_runs == "true":
-            self.update_predicted_runs(start_dt, end_dt, new_schedules)
+            self.update_predicted_runs(start_dt, end_dt)
             dags_data = dags_data + self.future_runs
         dags_data = sorted(dags_data, key=lambda x: x["dag_id"])
         return dags_data
@@ -1037,7 +1120,7 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
 
         Constructs a dictionary with formatted start, end, maximum end,
         and future run visibility indicators,
-        to be used as filters for DAG insights.
+        to be used as filters for Schedule Insidess.
 
         Args:
             start_dt (datetime): The starting datetime, formatted with minute precision.
@@ -1088,10 +1171,11 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
         start = request.args.get("start")
         end = request.args.get("end")
         client_timezone = request.args.get("timezone")
-        show_future_runs = request.args.get("show_future_runs")
+        show_future_runs = "true"  # request.args.get("show_future_runs")
         dag_names = request.args.getlist("dagName[]")
         cron_schedules = request.args.getlist("cronSchedule[]")
-        new_schedules = [
+        self.selected_dags = request.args.getlist("selected_dags_filter[]")
+        self.new_schedules = [
             {
                 "dag_name": dag,
                 "cron_schedule": cron,
@@ -1100,9 +1184,7 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
             for dag, cron in zip(dag_names, cron_schedules)
             if self.is_valid_cron(cron)
         ]
-        print("TATATATATATATATATA")
-        print(new_schedules)
-        return (start, end, client_timezone, show_future_runs, new_schedules)
+        return (start, end, client_timezone, show_future_runs)
 
     def get_all_active_dags(self):
         active_dags = session.query(DagModel).filter(DagModel.is_active.is_(True)).all()
@@ -1112,23 +1194,25 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
 
     @expose("/")
     def main(self):
-        """Sets a default start time and redirects to `dag_insight`.
+        """Sets a default start time and redirects to `schedule_insights`.
 
         This default method calculates a `start` time as 4 hours before the current
-        UTC time and redirects to `dag_insight`, passing this calculated `start` time.
+        UTC time and redirects to `schedule_insights`, passing this calculated `start`
+            time.
 
         Returns:
-            werkzeug.wrappers.Response: Redirect response to `self.dag_insight()`.
+            werkzeug.wrappers.Response: Redirect response to `self.schedule_insights()`.
         """
         time_limit = datetime.now(timezone.utc) - timedelta(hours=4)
         return redirect(
             url_for(
-                "DagInsightAppBuilderBaseView.dag_insight", start=time_limit.isoformat()
+                "ScheduleInsightsAppBuilderBaseView.schedule_insights",
+                start=time_limit.isoformat(),
             )
         )
 
-    @expose("/dag_insight")
-    def dag_insight(self):
+    @expose("/schedule_insights")
+    def schedule_insights(self):
         """Visualizes past and future DAG runs
 
         Args:
@@ -1149,7 +1233,6 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
             end,
             client_timezone,
             show_future_runs,
-            new_schedules,
         ) = self.get_params_from_request()
         start_dt, end_dt, end_of_time_dt = self.get_filter_dates(
             start, end, client_timezone
@@ -1158,17 +1241,16 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
             start_dt, end_dt, start, end_of_time_dt, show_future_runs
         )
         all_active_dags = self.get_all_active_dags()
-        dags_data = self.get_dag_runs_data(
-            start_dt, end_dt, show_future_runs, new_schedules
-        )
+        dags_data = self.get_dag_runs_data(start_dt, end_dt, show_future_runs)
         return self.render_template(
-            "dag_insight.html",
+            "schedule_insights.html",
             dags_data=dags_data,
             filter_values=filter_values,
-            not_running_dags=self.not_running_dags,
+            next_runs=self.next_runs,
             future_runs=self.future_runs,
             all_active_dags=all_active_dags,
-            new_schedules=new_schedules,
+            new_schedules=self.new_schedules,
+            selected_dags=self.selected_dags,
         )
 
     @expose("/get_future_runs_json")
@@ -1200,22 +1282,20 @@ class DagInsightAppBuilderBaseView(AppBuilderBaseView):
         )
         self.update_predicted_runs(start_dt, end_dt)
         if dag_id:
-            self.not_running_dags = [
-                run for run in self.not_running_dags if run["dag_id"] == dag_id
-            ]
-        return jsonify(self.not_running_dags)
+            self.next_runs = [run for run in self.next_runs if run["dag_id"] == dag_id]
+        return jsonify(self.next_runs)
 
 
-v_appbuilder_view = DagInsightAppBuilderBaseView()
+v_appbuilder_view = ScheduleInsightsAppBuilderBaseView()
 v_appbuilder_package = {
-    "name": "DAG Insight",
+    "name": "Schedule Insides",
     "category": "Browse",
     "view": v_appbuilder_view,
 }
 
 
-class DagInsightPlugin(AirflowPlugin):
-    name = "dag_insight"
+class ScheduleInsightsPlugin(AirflowPlugin):
+    name = "schedule_insights"
     hooks = []
     macros = []
     flask_blueprints = [bp]

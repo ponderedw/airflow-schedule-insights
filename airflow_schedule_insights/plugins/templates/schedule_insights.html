@@ -1,11 +1,15 @@
 {% extends base_template %}
 {% block content %}
+<!-- Load Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/js/select2.min.js"></script>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DAG Insight</title>
+    <title>Schedule Insides</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         body {
@@ -52,7 +56,11 @@
         }
 
         .bar.forecast {
-            fill: rgb(77, 77, 77);
+            fill: rgba(9, 99, 155, 0.745);
+        }
+
+        .bar.schedule_simulator {
+            fill: rgba(126, 9, 155, 0.745);
         }
 
         .manual-run {
@@ -143,11 +151,51 @@
         .scheduleTable { width: 100%; border-collapse: collapse; }
         th, td { padding: 8px; text-align: left; border: 1px solid #ddd; }
         .error { color: red; font-size: 0.9em; }
+        .legend {
+            margin-bottom: 20px; /* Space between the legend and the Gantt chart */
+        }
+
+        .legend ul {
+            list-style-type: none; /* Remove bullet points */
+            padding: 0;
+            display: flex; /* Use flexbox to arrange items in a row */
+        }
+
+        .legend li {
+            display: flex; /* Align items in a row */
+            align-items: center; /* Center vertically */
+            margin-right: 15px; /* Space between legend items */
+        }
+
+        .legend .bar {
+            width: 20px; /* Width of the color box */
+            height: 20px; /* Height of the color box */
+            margin-right: 5px; /* Space between the color box and text */
+        }
+        .legend .selected_dags {
+            border: 2px solid rgb(59, 59, 59);
+            background-color: transparent;
+        }
+        /* .legend .selected_dags {
+            background: repeating-linear-gradient(
+                45deg,
+                rgba(99, 99, 99, 0.7),
+                rgba(99, 99, 99, 0.7) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            border: 1px solid rgba(99, 99, 99, 0.7);
+        } */
+        .bar.selected_dags {
+            stroke: rgb(59, 59, 59);
+            stroke-width: 2px;
+        }
+ 
     </style>
 </head>
 <body>
 
-    <h1>DAG Insight</h1>
+    <h1>Schedule Insides</h1>
     <h2 id="timezone-header">Timezone</h2>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
@@ -157,7 +205,7 @@
         });
     </script>
     <!-- Date Filter Form -->
-    <form id="date-filter-form" action="{{ url_for('DagInsightAppBuilderBaseView.dag_insight') }}" method="get">
+    <form id="date-filter-form" action="{{ url_for('ScheduleInsightsAppBuilderBaseView.schedule_insights') }}" method="get">
         <div class="form-group">
             <label for="start-datetime">From:</label>
             <input type="datetime-local" id="start-datetime" name="start" value="{{ filter_values.get('start', '') }}">
@@ -168,11 +216,20 @@
             <input type="datetime-local" id="end-datetime" name="end" value="{{ filter_values.get('end', '') }}" max="{{ filter_values.get('max_end', '') }}">
         </div>
 
-        <div class="form-group">
+        <!-- <div class="form-group">
             <label for="show-future-runs">Show Future Runs?</label>
             <input type="checkbox" id="show-future-runs" name="show_future_runs" value="true" {% if filter_values.get('show_future_runs', '') %}checked{% endif %}>
+        </div> -->
+        <div class="form-group">
+            <label for="selected_dags_filter">Select DAGs</label>
+            <select id="selected_dags_filter" name="selected_dags_filter[]" class="form-control select2" multiple="multiple">
+                {% for dag in all_active_dags %}
+                <option value="{{ dag }}" {% if dag in selected_dags %}selected{% endif %}>{{ dag }}</option>
+                {% endfor %}
+                <!-- Add more options as needed -->
+            </select>
         </div>
-        <div class="form-group" id="schedule-impact-simulator" style="display: none;">
+        <div class="form-group" id="schedule-impact-simulator">
             <div class="panel panel-default">
               <div class="panel-heading">
                 <h4 class="panel-title">
@@ -219,14 +276,69 @@
         <input type="hidden" id="timezone" name="timezone" value="">
         <button type="submit" class="btn btn-primary">Update</button>
     </form>
-    
+    <script>
+        $(document).ready(function() {
+            $('#selected_dags_filter').select2({
+                placeholder: "Select one or more DAGs",
+                allowClear: true,
+                width: '100%'  /* Makes the select2 dropdown full-width */
+            });
+        });
+    </script>
     {% if filter_values.get('show_future_runs', '') == 'true' %}
     <div class="dags-table-body">
         <div class="panel panel-default">
           <div class="panel-heading">
             <h4 class="panel-title">
-              <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion1" href="#accordion1_href" title="Future Runs" aria-expanded="false">
-                Future Runs <span class="caret"></span>
+              <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion2" href="#accordion2_href" title="Next Run" aria-expanded="false">
+                Next Run <span class="caret"></span>
+              </a>
+            </h4>
+          </div>
+          <div id="accordion2_href" class="panel-collapse collapse" aria-expanded="false" style="">
+            <div class="panel-body">
+                <table class="table table-striped table-bordered table-hover user-table">
+                    <thead>
+                      <tr>
+                        <th>DAG ID</th>
+                        <th>Start Time</th>
+                        <th>End Time</th>
+                        <th>Owners</th>
+                        <th>Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for row in next_runs %}
+                      <tr>
+                        <td>
+                          <div><a href="/dags/{{ row.dag_id }}" target="_blank">{{ row.dag_id }}</a></div>
+                        </td>
+                        <td class="table-date" table-data-date="{{ row.get('start_time', '') }}">
+                            {{ row.get('start_time', '') }}
+                        </td>
+                        <td class="table-date" table-data-date="{{ row.get('end_time', '') }}">
+                            {{ row.get('end_time', '') }}
+                        </td>
+                        <td>
+                            {{ row.get('owner', '') }}
+                        </td>
+                        <td>
+                          {{ row.get('description', '') }}
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    <div class="dags-table-body">
+        <div class="panel panel-default">
+          <div class="panel-heading">
+            <h4 class="panel-title">
+              <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion1" href="#accordion1_href" title="All Future Runs" aria-expanded="false">
+                All Future Runs <span class="caret"></span>
               </a>
             </h4>
           </div>
@@ -268,45 +380,19 @@
           </div>
         </div>
       </div>
-
-      <div class="dags-table-body">
-        <div class="panel panel-default">
-          <div class="panel-heading">
-            <h4 class="panel-title">
-              <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion2" href="#accordion2_href" title="Missing Future Runs" aria-expanded="false">
-                Missing Future Runs <span class="caret"></span>
-              </a>
-            </h4>
-          </div>
-          <div id="accordion2_href" class="panel-collapse collapse" aria-expanded="false" style="">
-            <div class="panel-body">
-                <table class="table table-striped table-bordered table-hover user-table">
-                    <thead>
-                      <tr>
-                        <th>DAG ID</th>
-                        <th>Description</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {% for row in not_running_dags %}
-                      <tr>
-                        <td>
-                          <div><a href="/dags/{{ row.dag_id }}" target="_blank">{{ row.dag_id }}</a></div>
-                        </td>
-                        <td>
-                          {{ row.description }}
-                        </td>
-                      </tr>
-                      {% endfor %}
-                    </tbody>
-                  </table>
-            </div>
-          </div>
-        </div>
-      </div>
       {% endif %}
       
        
+    <div class="legend">
+        <ul>
+            <li><span class="bar failed" style="background-color: red;"></span> Failed</li>
+            <li><span class="bar success" style="background-color: green;"></span> Success</li>
+            <li><span class="bar running" style="background-color: orange;"></span> Running</li>
+            <li><span class="bar forecast" style="background-color: rgba(9, 99, 155, 0.745);"></span> Forecast</li>
+            <li><span class="bar schedule_simulator" style="background-color: rgba(126, 9, 155, 0.745);"></span> Schedule Simulator</li>
+            <li><span class="bar selected_dags"></span> Selected DAGs</li>
+        </ul>
+    </div>
 
     <div class="chart" id="gantt-chart"></div>
     <div class="main-content">
@@ -423,7 +509,7 @@
             .attr("href", d => `/dags/${d.dag_id}`) // Replace with your desired link
             .attr("target", "_blank") // Open the link in a new tab
             .append("rect")
-            .attr("class", d => `bar ${d.state} ${d.manual_run ? 'manual-run' : ''}`)
+            .attr("class", d => `bar ${d.state} ${d.ind_selected_dags} ${d.manual_run ? 'manual-run' : ''}`)
             .attr("x", d => x(new Date(d.start_time)))
             .attr("y", d => y(d.dag_id))
             .attr("width", d => x(new Date(d.end_time)) - x(new Date(d.start_time)))
@@ -475,8 +561,13 @@
     <script>
         document.querySelectorAll('.table-date').forEach(cell => {
             const dateValue = cell.getAttribute('table-data-date');
+            if (dateValue == '') {
+                cell.textContent = ''
+            }
+            else {
             const formattedDate = new Date(dateValue).toLocaleString();
             cell.textContent = formattedDate; // Replace the cell text with the formatted date
+            }
         });
     </script>
     <script>

@@ -10,7 +10,7 @@ x-airflow-common:
     - common-airflow.env
   volumes:
     - ./dags:/opt/airflow/dags
-    - ../airflow_dag_insight/plugins:/opt/airflow/plugins
+    - ../airflow_schedule_insights/plugins:/opt/airflow/plugins
 
 x-airflow_depends_on:
   &airflow-depends-on

@@ -220,6 +220,15 @@
             <label for="show-future-runs">Show Future Runs?</label>
             <input type="checkbox" id="show-future-runs" name="show_future_runs" value="true" {% if filter_values.get('show_future_runs', '') %}checked{% endif %}>
         </div> -->
+        <div class="form-group">
+            <label for="selected_dags_filter">Select DAGs</label>
+            <select id="selected_dags_filter" name="selected_dags_filter[]" class="form-control select2" multiple="multiple">
+                {% for dag in all_active_dags %}
+                <option value="{{ dag }}" {% if dag in selected_dags %}selected{% endif %}>{{ dag }}</option>
+                {% endfor %}
+                <!-- Add more options as needed -->
+            </select>
+        </div>
         <div class="form-group" id="schedule-impact-simulator">
             <div class="panel panel-default">
               <div class="panel-heading">
@@ -263,15 +272,6 @@
                 </div>
               </div>
             </div>
-        </div>
-        <div class="form-group">
-            <label for="selected_dags_filter">Select DAGs</label>
-            <select id="selected_dags_filter" name="selected_dags_filter[]" class="form-control select2" multiple="multiple">
-                {% for dag in all_active_dags %}
-                <option value="{{ dag }}" {% if dag in selected_dags %}selected{% endif %}>{{ dag }}</option>
-                {% endfor %}
-                <!-- Add more options as needed -->
-            </select>
         </div>
         <input type="hidden" id="timezone" name="timezone" value="">
         <button type="submit" class="btn btn-primary">Update</button>

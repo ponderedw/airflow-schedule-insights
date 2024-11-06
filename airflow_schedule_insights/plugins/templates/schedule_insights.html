@@ -313,10 +313,10 @@
                         <td>
                           <div><a href="/dags/{{ row.dag_id }}" target="_blank">{{ row.dag_id }}</a></div>
                         </td>
-                        <td>
+                        <td class="table-date" table-data-date="{{ row.get('start_time', '') }}">
                             {{ row.get('start_time', '') }}
                         </td>
-                        <td>
+                        <td class="table-date" table-data-date="{{ row.get('end_time', '') }}">
                             {{ row.get('end_time', '') }}
                         </td>
                         <td>
@@ -561,8 +561,13 @@
     <script>
         document.querySelectorAll('.table-date').forEach(cell => {
             const dateValue = cell.getAttribute('table-data-date');
+            if (dateValue == '') {
+                cell.textContent = ''
+            }
+            else {
             const formattedDate = new Date(dateValue).toLocaleString();
             cell.textContent = formattedDate; // Replace the cell text with the formatted date
+            }
         });
     </script>
     <script>

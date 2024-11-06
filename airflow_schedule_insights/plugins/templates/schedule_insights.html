@@ -308,7 +308,7 @@
                       </tr>
                     </thead>
                     <tbody>
-                      {% for row in not_running_dags %}
+                      {% for row in next_runs %}
                       <tr>
                         <td>
                           <div><a href="/dags/{{ row.dag_id }}" target="_blank">{{ row.dag_id }}</a></div>

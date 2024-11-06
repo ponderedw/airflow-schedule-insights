@@ -32,7 +32,7 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
         super().__init__()
         self.event_driven_dags = []
         self.future_runs = []
-        self.not_running_dags = []
+        self.next_runs = []
         self.new_schedules = []
 
     def is_valid_cron(self, cron_string):
@@ -376,7 +376,7 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
             final_start_time (dict): A dictionary containing details about
                 the final start time.
         """
-        self.not_running_dags.append(
+        self.next_runs.append(
             {
                 "dag_id": dag_id,
                 "description": final_start_time.get("description"),
@@ -459,7 +459,7 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
         """
         if (
             final_start_time.get("start_time") is None
-            and dep_id not in [dag["dag_id"] for dag in self.not_running_dags]
+            and dep_id not in [dag["dag_id"] for dag in self.next_runs]
             and ind_scheduled is False
         ):
             self.update_future_missing_dags(dep_id, final_start_time)
@@ -688,7 +688,7 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
                 description = "The DAG is paused"
             else:
                 description = "The DAG doesn't have a schedule or other dependencies"
-            self.not_running_dags.append(
+            self.next_runs.append(
                 {
                     "dag_id": leaf["dep_id"],
                     "description": description,
@@ -731,11 +731,11 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
 
         """
         self.future_runs = []
-        self.not_running_dags = []
+        self.next_runs = []
         self.update_event_driven_dags()
         self.get_future_dependencies_runs(start_dt, end_dt)
         self.append_missing_future_independent_nodes_runs()
-        self.not_running_dags = sorted(self.not_running_dags, key=lambda x: x["dag_id"])
+        self.next_runs = sorted(self.next_runs, key=lambda x: x["dag_id"])
 
     def get_scheduled_dags_meta_query(self):
         """Constructs a query to fetch metadata and
@@ -1190,7 +1190,7 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
             "schedule_insights.html",
             dags_data=dags_data,
             filter_values=filter_values,
-            not_running_dags=self.not_running_dags,
+            next_runs=self.next_runs,
             future_runs=self.future_runs,
             all_active_dags=all_active_dags,
             new_schedules=self.new_schedules,
@@ -1226,10 +1226,10 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
         )
         self.update_predicted_runs(start_dt, end_dt)
         if dag_id:
-            self.not_running_dags = [
-                run for run in self.not_running_dags if run["dag_id"] == dag_id
+            self.next_runs = [
+                run for run in self.next_runs if run["dag_id"] == dag_id
             ]
-        return jsonify(self.not_running_dags)
+        return jsonify(self.next_runs)
 
 
 v_appbuilder_view = ScheduleInsightsAppBuilderBaseView()

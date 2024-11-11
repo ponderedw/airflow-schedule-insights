@@ -190,6 +190,20 @@
             stroke: rgb(59, 59, 59);
             stroke-width: 2px;
         }
+        .selected-icon {
+            display: inline-block;
+            width: 16px; /* Set width as desired */
+            height: 16px; /* Set height as desired */
+            background-color: rgb(59, 59, 59); /* Set the color */
+            border-radius: 50%; /* Makes it a circle */
+        }
+        .simulator-icon {
+            display: inline-block;
+            width: 16px; /* Set width as desired */
+            height: 16px; /* Set height as desired */
+            background-color: rgba(126, 9, 155, 0.745); /* Set the color */
+            border-radius: 50%; /* Makes it a circle */
+        }
  
     </style>
 </head>
@@ -300,6 +314,8 @@
                 <table class="table table-striped table-bordered table-hover user-table">
                     <thead>
                       <tr>
+                        <th>Selected</th>
+                        <th>Simulator</th>
                         <th>DAG ID</th>
                         <th>Start Time</th>
                         <th>End Time</th>
@@ -310,6 +326,20 @@
                     <tbody>
                       {% for row in next_runs %}
                       <tr>
+                        <td>
+                            {% if row.get('ind_selected_dags', '') == 'selected_dags' %}
+                            <i class="selected-icon"></i>
+                            {% else %}
+                            <i class="fa fa-times"></i>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if row.get('state', '') == 'schedule_simulator' %}
+                            <i class="simulator-icon"></i>
+                            {% else %}
+                            <i class="fa fa-times"></i>
+                            {% endif %}
+                        </td>
                         <td>
                           <div><a href="/dags/{{ row.dag_id }}" target="_blank">{{ row.dag_id }}</a></div>
                         </td>
@@ -347,6 +377,8 @@
                 <table class="table table-striped table-bordered table-hover user-table">
                     <thead>
                       <tr>
+                        <th>Selected</th>
+                        <th>Simulator</th>
                         <th>DAG ID</th>
                         <th>Start Time</th>
                         <th>End Time</th>
@@ -357,6 +389,20 @@
                     <tbody>
                       {% for row in future_runs %}
                       <tr>
+                        <td>
+                            {% if row.get('ind_selected_dags', '') == 'selected_dags' %}
+                            <i class="selected-icon"></i>
+                            {% else %}
+                            <i class="fa fa-times"></i>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if row.get('state', '') == 'schedule_simulator' %}
+                            <i class="simulator-icon"></i>
+                            {% else %}
+                            <i class="fa fa-times"></i>
+                            {% endif %}
+                        </td>
                         <td>
                             <div><a href="/dags/{{ row.dag_id }}" target="_blank">{{ row.dag_id }}</a></div>
                         </td>

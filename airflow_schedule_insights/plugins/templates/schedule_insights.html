@@ -607,17 +607,17 @@
         </script>
         
         <script>
-            document.getElementById("show-future-runs").addEventListener("change", function() {
-                const simulatorPanel = document.getElementById("schedule-impact-simulator");
-                if (this.checked) {
-                    simulatorPanel.style.display = "block";
-                } else {
-                    simulatorPanel.style.display = "none";
-                }
-            });
+            // document.getElementById("show-future-runs").addEventListener("change", function() {
+            //     const simulatorPanel = document.getElementById("schedule-impact-simulator");
+            //     if (this.checked) {
+            //         simulatorPanel.style.display = "block";
+            //     } else {
+            //         simulatorPanel.style.display = "none";
+            //     }
+            // });
 
             // Trigger the change event on page load to ensure correct display
-            document.getElementById("show-future-runs").dispatchEvent(new Event('change'));
+            // document.getElementById("show-future-runs").dispatchEvent(new Event('change'));
             // Function to add a new row to the table
             function addRow() {
                 const tableBody = document.getElementById("scheduleBody");
@@ -648,7 +648,7 @@
         
             // Validate uniqueness of DAG names
             function validateUniqueDagNames() {
-                const dagNameElements = document.querySelectorAll("select[name='dagName']");
+                const dagNameElements = document.querySelectorAll("select[name='dagName[]']");
                 const selectedValues = Array.from(dagNameElements).map(select => select.value);
                 const duplicates = selectedValues.filter((item, index) => selectedValues.indexOf(item) !== index);
         
@@ -676,7 +676,7 @@
                 let isValid = true;
         
                 // Validate cron expressions
-                document.querySelectorAll("input[name='cronSchedule']").forEach(input => {
+                document.querySelectorAll("input[name='cronSchedule[]']").forEach(input => {
                     const errorSpan = input.nextElementSibling;
                     if (validateCron(input.value)) {
                         errorSpan.style.display = "none";

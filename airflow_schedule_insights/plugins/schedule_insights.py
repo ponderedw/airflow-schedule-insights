@@ -723,14 +723,15 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
                 description = "The DAG is paused"
             else:
                 description = "The DAG doesn't have a schedule or other dependencies"
-            self.next_runs.append(
-                {
-                    "dag_id": leaf["dep_id"],
-                    "description": description,
-                    "path": leaf["dep_id"],
-                    "owner": leaf["deps_owners"],
-                }
-            )
+            if leaf["dep_id"] not in [dag["dag_id"] for dag in self.next_runs]:
+                self.next_runs.append(
+                    {
+                        "dag_id": leaf["dep_id"],
+                        "description": description,
+                        "path": leaf["dep_id"],
+                        "owner": leaf["deps_owners"],
+                    }
+                )
 
     def update_event_driven_runs_metadata(self, start_dt: datetime, end_dt: datetime):
         """Updates metadata for future runs of event-driven DAGs within a specified

@@ -34,6 +34,7 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
         self.future_runs = []
         self.next_runs = []
         self.new_schedules = []
+        self.selected_dags = []
 
     def is_valid_cron(self, cron_string):
         try:
@@ -377,12 +378,22 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
             final_start_time (dict): A dictionary containing details about
                 the final start time.
         """
+        ind_selected_dags = "not_selected_dags"
+        for dag in self.selected_dags:
+            if (
+                " " + dag + " " in final_start_time.get("path")
+                or final_start_time.get("path").startswith(dag + " ")
+                or final_start_time.get("path").endswith(" " + dag)
+                or dag_id == dag
+            ):
+                ind_selected_dags = "selected_dags"
         self.next_runs.append(
             {
                 "dag_id": dag_id,
                 "description": final_start_time.get("description"),
                 "path": final_start_time.get("path"),
                 "owner": owners,
+                "ind_selected_dags": ind_selected_dags,
             }
         )
 
@@ -450,6 +461,7 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
                 " " + dag + " " in path
                 or path.startswith(dag + " ")
                 or path.endswith(" " + dag)
+                or path == dag
             ):
                 ind_selected_dags = "selected_dags"
         row = {
@@ -578,10 +590,14 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
             deps, condition_type, start_dt, end_dt
         )
         if dep_is_paused and dep_type == "DAG":  # Dag won't run because it's paused
+            ind_selected_dags = "not_selected_dags"
+            if dep_id in self.selected_dags:
+                ind_selected_dags = "selected_dags"
             final_start_time = {
                 "start_time": None,
                 "description": "The DAG is paused",
                 "path": dep_id,
+                "ind_selected_dags": ind_selected_dags,
             }
         final_end_time = (
             None
@@ -723,14 +739,19 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
                 description = "The DAG is paused"
             else:
                 description = "The DAG doesn't have a schedule or other dependencies"
-            self.next_runs.append(
-                {
-                    "dag_id": leaf["dep_id"],
-                    "description": description,
-                    "path": leaf["dep_id"],
-                    "owner": leaf["deps_owners"],
-                }
-            )
+            ind_selected_dags = "not_selected_dags"
+            if leaf["dep_id"] in self.selected_dags:
+                ind_selected_dags = "selected_dags"
+            if leaf["dep_id"] not in [dag["dag_id"] for dag in self.next_runs]:
+                self.next_runs.append(
+                    {
+                        "dag_id": leaf["dep_id"],
+                        "description": description,
+                        "path": leaf["dep_id"],
+                        "owner": leaf["deps_owners"],
+                        "ind_selected_dags": ind_selected_dags,
+                    }
+                )
 
     def update_event_driven_runs_metadata(self, start_dt: datetime, end_dt: datetime):
         """Updates metadata for future runs of event-driven DAGs within a specified

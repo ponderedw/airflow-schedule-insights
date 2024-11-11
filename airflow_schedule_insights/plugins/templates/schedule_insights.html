@@ -263,12 +263,12 @@
                                     <input type="text" name="cronSchedule[]" placeholder="* * * * *" value="{{ schedule.cron_schedule }}" required>
                                     <span class="error" style="display:none;">Invalid cron expression</span>
                                 </td>
-                                <td><button type="button" onclick="deleteRow(this)">Delete</button></td>
+                                <td><button type="button" onclick="deleteRow(this)"><i class="fa fa-trash"></i></button></td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
-                    <button type="button" onclick="addRow()">Add Row</button>
+                    <button type="button" onclick="addRow()"><i class="fa fa-plus-circle"></i></button>
                 </div>
               </div>
             </div>
@@ -635,7 +635,7 @@
                         <input type="text" name="cronSchedule[]" placeholder="* * * * *" required>
                         <span class="error" style="display:none;">Invalid cron expression</span>
                     </td>
-                    <td><button type="button" onclick="deleteRow(this)">Delete</button></td>
+                    <td><button type="button" onclick="deleteRow(this)"><i class="fa fa-trash"></i></button></td>
                 `;
                 tableBody.appendChild(newRow);
             }

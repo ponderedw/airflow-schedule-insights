@@ -393,7 +393,7 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
                 "description": final_start_time.get("description"),
                 "path": final_start_time.get("path"),
                 "owner": owners,
-                "ind_selected_dags": ind_selected_dags
+                "ind_selected_dags": ind_selected_dags,
             }
         )
 
@@ -597,7 +597,7 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
                 "start_time": None,
                 "description": "The DAG is paused",
                 "path": dep_id,
-                "ind_selected_dags": ind_selected_dags
+                "ind_selected_dags": ind_selected_dags,
             }
         final_end_time = (
             None
@@ -739,9 +739,9 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
                 description = "The DAG is paused"
             else:
                 description = "The DAG doesn't have a schedule or other dependencies"
-            ind_selected_dags = 'not_selected_dags'
+            ind_selected_dags = "not_selected_dags"
             if leaf["dep_id"] in self.selected_dags:
-                ind_selected_dags = 'selected_dags'
+                ind_selected_dags = "selected_dags"
             if leaf["dep_id"] not in [dag["dag_id"] for dag in self.next_runs]:
                 self.next_runs.append(
                     {
@@ -749,7 +749,7 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
                         "description": description,
                         "path": leaf["dep_id"],
                         "owner": leaf["deps_owners"],
-                        "ind_selected_dags": ind_selected_dags
+                        "ind_selected_dags": ind_selected_dags,
                     }
                 )
 

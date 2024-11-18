@@ -1293,8 +1293,8 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
             ]
         return jsonify(self.future_runs)
 
-    @expose("/get_missing_future_runs_json")
-    def get_missing_future_runs_json(self):
+    @expose("/get_next_future_run_json")
+    def get_next_future_run_json(self):
         start, end, client_timezone, show_future_runs = self.get_params_from_request()
         dag_id = request.args.get("dag_id")
         start = datetime.now(timezone.utc).isoformat()

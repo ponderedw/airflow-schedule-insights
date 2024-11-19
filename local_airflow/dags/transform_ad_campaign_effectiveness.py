@@ -6,13 +6,13 @@ from airflow.timetables.datasets import DatasetOrTimeSchedule
 from airflow.timetables.trigger import CronTriggerTimetable
 
 
-@dag(dag_id='secondary_dag_5', max_active_runs=1, start_date=datetime(2023, 1, 1),
+@dag(dag_id='transform_ad_campaign_effectiveness', max_active_runs=1, start_date=datetime(2023, 1, 1),
      is_paused_upon_creation=False, catchup=False, schedule_interval=DatasetOrTimeSchedule(
                         timetable=CronTriggerTimetable("*/40 * * * *",
                                                        timezone="UTC"),
                         datasets=(Dataset('transform_inventory_optimization'))))
 def dag_test():
-    @task(outlets=[Dataset('secondary_dag_5')])
+    @task(outlets=[Dataset('transform_ad_campaign_effectiveness')])
     def end_task():
         time.sleep(25)
 

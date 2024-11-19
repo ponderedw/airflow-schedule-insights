@@ -2,7 +2,7 @@ from airflow.decorators import dag, task
 from pendulum import datetime
 
 
-@dag(dag_id='not_scheduled_load_dag', max_active_runs=1, start_date=datetime(2023, 1, 1),
+@dag(dag_id='load_movie_inventory', max_active_runs=1, start_date=datetime(2023, 1, 1),
      is_paused_upon_creation=False, catchup=False, schedule_interval=None)
 def dag_test():
     @task

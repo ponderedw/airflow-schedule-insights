@@ -5,10 +5,10 @@ from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 import time
 
 
-@dag(dag_id='load_dag_2', max_active_runs=1, start_date=datetime(2023, 1, 1),
+@dag(dag_id='load_customer_feedback', max_active_runs=1, start_date=datetime(2023, 1, 1),
      is_paused_upon_creation=False, catchup=False, schedule_interval='*/25 * * * *')
 def dag_test():
-    @task(outlets=[Dataset('load_dag_2')])
+    @task(outlets=[Dataset('load_customer_feedback')])
     def end_task():
         time.sleep(120)
 

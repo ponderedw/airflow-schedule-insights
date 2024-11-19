@@ -4,10 +4,16 @@ from airflow.datasets import Dataset
 import time
 
 
-@dag(dag_id='transform_sales_aggregator', max_active_runs=1, start_date=datetime(2023, 1, 1),
-     is_paused_upon_creation=False, catchup=False, schedule_interval='*/30 * * * *')
+@dag(
+    dag_id="transform_sales_aggregator",
+    max_active_runs=1,
+    start_date=datetime(2023, 1, 1),
+    is_paused_upon_creation=False,
+    catchup=False,
+    schedule_interval="*/30 * * * *",
+)
 def dag_test():
-    @task(outlets=[Dataset('transform_sales_aggregator')])
+    @task(outlets=[Dataset("transform_sales_aggregator")])
     def end_task():
         time.sleep(40)
 

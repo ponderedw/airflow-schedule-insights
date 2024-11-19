@@ -5,7 +5,7 @@ import time
 
 
 @dag(dag_id='secondary_dag_6', max_active_runs=1, start_date=datetime(2023, 1, 1),
-     is_paused_upon_creation=False, catchup=False, schedule_interval=(Dataset('transform_inventory_optimization') & Dataset('secondary_dag_4')))
+     is_paused_upon_creation=False, catchup=False, schedule_interval=(Dataset('transform_inventory_optimization') & Dataset('transform_movie_performance')))
 def dag_test():
     @task(outlets=[Dataset('secondary_dag_6')])
     def end_task():

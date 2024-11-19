@@ -4,10 +4,10 @@ from airflow.datasets import Dataset
 import time
 
 
-@dag(dag_id='secondary_dag_7', max_active_runs=1, start_date=datetime(2023, 1, 1),
+@dag(dag_id='transform_forecast_attendance', max_active_runs=1, start_date=datetime(2023, 1, 1),
      is_paused_upon_creation=False, catchup=False, schedule_interval=(Dataset('transform_sales_aggregator') & Dataset('transform_customer_sentiment')))
 def dag_test():
-    @task(outlets=[Dataset('secondary_dag_7')])
+    @task(outlets=[Dataset('transform_forecast_attendance')])
     def end_task():
         time.sleep(25)
         a = 1 / 0

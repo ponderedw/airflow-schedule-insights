@@ -14,7 +14,7 @@ def dag_test():
 
     TriggerDagRunOperator(
         task_id="trigger_secondary_dag",
-        trigger_dag_id="secondary_dag_1",
+        trigger_dag_id="transform_sales_aggregator",
         wait_for_completion=False
     )
 

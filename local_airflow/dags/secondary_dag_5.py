@@ -10,7 +10,7 @@ from airflow.timetables.trigger import CronTriggerTimetable
      is_paused_upon_creation=False, catchup=False, schedule_interval=DatasetOrTimeSchedule(
                         timetable=CronTriggerTimetable("*/40 * * * *",
                                                        timezone="UTC"),
-                        datasets=(Dataset('secondary_dag_3'))))
+                        datasets=(Dataset('transform_inventory_optimization'))))
 def dag_test():
     @task(outlets=[Dataset('secondary_dag_5')])
     def end_task():

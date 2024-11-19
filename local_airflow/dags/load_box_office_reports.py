@@ -3,7 +3,7 @@ from pendulum import datetime
 import time
 
 
-@dag(dag_id='paused_load_dag', max_active_runs=1, start_date=datetime(2023, 1, 1),
+@dag(dag_id='load_box_office_reports', max_active_runs=1, start_date=datetime(2023, 1, 1),
      is_paused_upon_creation=True, catchup=False, schedule_interval=None)
 def dag_test():
     @task

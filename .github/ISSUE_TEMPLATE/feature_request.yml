@@ -1,0 +1,37 @@
+name: Feature Request
+description: Feature Request Template
+title: "[Feature]: "
+labels: ["enhancement"]
+assignees:
+  - EgorTarsenko
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to describe a new feature!
+  - type: input
+    id: contact
+    attributes:
+      label: Contact Details
+      description: How can we get in touch with you if we need more info?
+      placeholder: ex. email@example.com
+    validations:
+      required: false
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: Problem Description
+      description: Provide a clear and concise description of the problem this feature request aims to solve.
+      placeholder: Describe the problem or need for this feature.
+      value: "Please add MySQL metadata database support"
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Suggested Solution
+      description: Provide a concise description of how you think the problem can be solved.
+      placeholder: Suggest how this can be implemented or improved.
+      value: "Change SQL query to work with the MySQL database."
+    validations:
+      required: false

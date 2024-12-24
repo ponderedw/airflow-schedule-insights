@@ -58,7 +58,7 @@ datasets_dependencies (
     select
         dag_id::varchar as dag_id,
         dag_id::varchar as dep_id,
-        'DAG' as dep_type,
+        'DAG'::varchar as dep_type,
         concat(
             dag_id::varchar,
             '_',
@@ -69,26 +69,26 @@ datasets_dependencies (
             -> 'dataset_condition'
             ->> '__type',
             '_1'
-        ) as trigger_id,
-        "data"
+        )::varchar as trigger_id,
+        ("data"
         -> 'dag'
         -> 'timetable'
         -> '__var'
         -> 'dataset_condition'
-        ->> '__type' as trigger_type,
+        ->> '__type')::varchar as trigger_type,
         "data"
         -> 'dag'
         -> 'timetable'
         -> '__var'
         -> 'dataset_condition' as dataset_dependencies,
-        'any' as condition_type,
+        'any'::varchar as condition_type,
         1 as lvl,
-        "data"
+        ("data"
         -> 'dag'
         -> 'timetable'
         -> '__var'
         -> 'dataset_condition'
-        ->> 'uri' as dataset
+        ->> 'uri')::varchar as dataset
     from
         serialized_dag
     where
@@ -101,7 +101,7 @@ datasets_dependencies (
     select
         dag_id::varchar as dag_id,
         (x.trigger_id)::varchar as dep_id,
-        x.trigger_type as dep_type,
+        x.trigger_type::varchar as dep_type,
         concat(
             trigger_id,
             '_',
@@ -110,19 +110,19 @@ datasets_dependencies (
             lvl + 1,
             '_',
             row_number() over (partition by (x.trigger_id)::varchar)
-        ) as trigger_id,
-        json_array_elements(dataset_dependencies -> 'objects')
-        ->> '__type' as trigger_type,
+        )::varchar as trigger_id,
+        (json_array_elements(dataset_dependencies -> 'objects')
+        ->> '__type')::varchar as trigger_type,
         json_array_elements(
             dataset_dependencies -> 'objects'
         ) as dataset_dependencies,
         case
             when dataset_dependencies ->> '__type' = 'dataset_all' then 'all'
             else 'any'
-        end as condition_type,
+        end::varchar as condition_type,
         lvl + 1 as lvl,
-        json_array_elements(dataset_dependencies -> 'objects')
-        ->> 'uri' as dataset
+        (json_array_elements(dataset_dependencies -> 'objects')
+        ->> 'uri')::varchar as dataset
     from
         datasets_dependencies as x
     where

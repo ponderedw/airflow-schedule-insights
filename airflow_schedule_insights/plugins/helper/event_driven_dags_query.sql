@@ -70,12 +70,14 @@ datasets_dependencies (
             ->> '__type',
             '_1'
         )::varchar as trigger_id,
-        ("data"
-        -> 'dag'
-        -> 'timetable'
-        -> '__var'
-        -> 'dataset_condition'
-        ->> '__type')::varchar as trigger_type,
+        (
+            "data"
+            -> 'dag'
+            -> 'timetable'
+            -> '__var'
+            -> 'dataset_condition'
+            ->> '__type'
+        )::varchar as trigger_type,
         "data"
         -> 'dag'
         -> 'timetable'
@@ -83,12 +85,14 @@ datasets_dependencies (
         -> 'dataset_condition' as dataset_dependencies,
         'any'::varchar as condition_type,
         1 as lvl,
-        ("data"
-        -> 'dag'
-        -> 'timetable'
-        -> '__var'
-        -> 'dataset_condition'
-        ->> 'uri')::varchar as dataset
+        (
+            "data"
+            -> 'dag'
+            -> 'timetable'
+            -> '__var'
+            -> 'dataset_condition'
+            ->> 'uri'
+        )::varchar as dataset
     from
         serialized_dag
     where
@@ -111,8 +115,10 @@ datasets_dependencies (
             '_',
             row_number() over (partition by (x.trigger_id)::varchar)
         )::varchar as trigger_id,
-        (json_array_elements(dataset_dependencies -> 'objects')
-        ->> '__type')::varchar as trigger_type,
+        (
+            json_array_elements(dataset_dependencies -> 'objects')
+            ->> '__type'
+        )::varchar as trigger_type,
         json_array_elements(
             dataset_dependencies -> 'objects'
         ) as dataset_dependencies,
@@ -121,8 +127,10 @@ datasets_dependencies (
             else 'any'
         end::varchar as condition_type,
         lvl + 1 as lvl,
-        (json_array_elements(dataset_dependencies -> 'objects')
-        ->> 'uri')::varchar as dataset
+        (
+            json_array_elements(dataset_dependencies -> 'objects')
+            ->> 'uri'
+        )::varchar as dataset
     from
         datasets_dependencies as x
     where

@@ -1141,7 +1141,7 @@ class ScheduleInsightsAppBuilderBaseView(AppBuilderBaseView):
 
         Constructs a dictionary with formatted start, end, maximum end,
         and future run visibility indicators,
-        to be used as filters for Schedule Insightss.
+        to be used as filters for Schedule Insights.
 
         Args:
             start_dt (datetime): The starting datetime, formatted with minute precision.

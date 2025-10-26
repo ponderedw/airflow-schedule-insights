@@ -55,3 +55,4 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.urls]
 homepage = "https://github.com/ponderedw/airflow-schedule-insights"
+

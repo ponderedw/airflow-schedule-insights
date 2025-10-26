@@ -1,9 +1,9 @@
 [tool.poetry]
 name = "airflow-schedule-insights"
-version = "0.1.2"
+version = "0.1.3"
 description = "An Apache Airflow plugin that visualizes DAG runs in a Gantt chart, predicts future runs, and identifies tasks that won't execute. Enhance your workflow monitoring and planning with intuitive visualizations."
 license = "MIT"
-authors = ["Hipposys"]
+authors = ["Ponder"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
@@ -54,4 +54,4 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.urls]
-homepage = "https://github.com/hipposys-ltd/airflow-schedule-insights"
+homepage = "https://github.com/ponderedw/airflow-schedule-insights"

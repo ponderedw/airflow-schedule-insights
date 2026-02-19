@@ -1,548 +1,563 @@
-{% extends base_template %}
-{% block content %}
-<!-- Load Select2 CSS -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/css/select2.min.css" rel="stylesheet" />
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/js/select2.min.js"></script>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Schedule Insights</title>
+
+    <!-- Select2 -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/css/select2.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/js/select2.min.js"></script>
+
+    <!-- D3 -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <link rel="stylesheet" href="{{ request.script_root }}/static/airflow_schedule_insights/css/styles.css">
+
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f4f7f9; padding: 0; margin: 0; }
+        .page-body { padding: 20px; }
+        h1   { color: #333; margin-bottom: 4px; font-size: 1.6rem; }
+        h2   { color: #777; font-size: 0.95rem; margin: 0 0 18px 0; }
+
+        /* Top nav bar */
+        .top-nav {
+            background: #017cee; color: white; padding: 0 20px;
+            display: flex; align-items: center; gap: 24px; height: 44px;
+            font-size: 0.9rem; position: sticky; top: 0; z-index: 1000;
+        }
+        .top-nav .brand { font-weight: 700; font-size: 1rem; color: white; text-decoration: none; }
+        .top-nav a { color: rgba(255,255,255,0.85); text-decoration: none; }
+        .top-nav a:hover { color: white; }
+        .top-nav .sep { color: rgba(255,255,255,0.4); }
+
+        .card {
+            background: white; border-radius: 8px; padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 18px;
+        }
+
+        /* Controls */
+        .controls { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
+        .ctrl-group { display: flex; flex-direction: column; gap: 4px; }
+        .ctrl-group label { font-size: 0.82rem; color: #555; font-weight: 600; }
+        .ctrl-group input[type=datetime-local] {
+            border: 1px solid #ccc; border-radius: 4px; padding: 6px 10px; font-size: 0.88rem;
+        }
+        .select2-container { min-width: 280px; }
+        .btn {
+            background: #017cee; color: white; border: none;
+            padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 0.9rem;
+            height: 34px; align-self: flex-end;
+        }
+        .btn:hover { background: #0060c0; }
+
+        /* Accordion / collapsible */
+        .accordion-header {
+            cursor: pointer; user-select: none;
+            display: flex; justify-content: space-between; align-items: center;
+            font-weight: 600; font-size: 0.95rem; color: #333;
+            padding-bottom: 10px; border-bottom: 1px solid #eee; margin-bottom: 12px;
+        }
+        .accordion-header .caret { font-size: 0.75rem; color: #999; transition: transform 0.2s; }
+        .accordion-header.open .caret { transform: rotate(180deg); }
+        .accordion-body { display: none; }
+        .accordion-body.open { display: block; }
+
+        /* Simulator table */
+        .sim-table { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
+        .sim-table th { background: #f0f3f7; padding: 7px 10px; text-align: left; border-bottom: 2px solid #dee2e6; }
+        .sim-table td { padding: 6px 10px; border-bottom: 1px solid #f0f0f0; }
+        .sim-table select, .sim-table input[type=text] {
+            width: 100%; border: 1px solid #ccc; border-radius: 4px;
+            padding: 4px 8px; font-size: 0.86rem;
+        }
+        .btn-sm {
+            background: #e9ecef; border: none; border-radius: 4px;
+            padding: 4px 10px; cursor: pointer; font-size: 0.82rem;
+        }
+        .btn-sm:hover { background: #dee2e6; }
+        .btn-sm.danger { background: #f8d7da; color: #721c24; }
+        .btn-sm.danger:hover { background: #f5c6cb; }
+
+        /* Legend */
+        .legend { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 0.82rem; color: #555; }
+        .legend-dot { width: 12px; height: 12px; border-radius: 2px; display: inline-block; margin-right: 4px; vertical-align: middle; }
+
+        /* Gantt */
+        #gantt-chart { overflow-x: auto; }
+        .bar-success            { fill: #28a745; }
+        .bar-failed             { fill: #dc3545; }
+        .bar-running            { fill: #fd7e14; }
+        .bar-queued             { fill: #adb5bd; }
+        .bar-forecast           { fill: #017cee; opacity: 0.55; }
+        .bar-asset_triggered    { fill: #6f42c1; opacity: 0.6; }
+        .bar-schedule_simulator { fill: #7e099b; opacity: 0.65; }
+        .bar { opacity: 0.8; }
+        .bar:hover { opacity: 1 !important; cursor: pointer; }
+        .bar.not_selected_dags { opacity: 0.25; }
+        .bar.selected_dags     { opacity: 1; stroke: #ff8c00; stroke-width: 1.5px; }
+
+        /* Tooltip */
+        #tooltip {
+            position: fixed; background: rgba(20,20,20,0.88); color: #fff;
+            padding: 9px 13px; border-radius: 6px; font-size: 0.78rem;
+            pointer-events: none; opacity: 0; transition: opacity 0.12s;
+            max-width: 340px; line-height: 1.6; z-index: 9999;
+        }
+
+        /* Tables */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
+        .data-table th { background: #f0f3f7; text-align: left; padding: 8px 12px; border-bottom: 2px solid #dee2e6; }
+        .data-table td { padding: 7px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+        .data-table tr:hover td { background: #f8f9fa; }
+        .state-badge {
+            display: inline-block; padding: 2px 9px; border-radius: 12px;
+            font-size: 0.76rem; font-weight: 600; color: white;
+        }
+        .state-success            { background: #28a745; }
+        .state-failed             { background: #dc3545; }
+        .state-running            { background: #fd7e14; }
+        .state-queued             { background: #adb5bd; color: #555; }
+        .state-forecast           { background: #017cee; }
+        .state-asset_triggered    { background: #6f42c1; }
+        .state-schedule_simulator { background: #7e099b; }
+        a { color: #017cee; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .muted { color: #999; font-style: italic; font-size: 0.82rem; }
+
+        /* Tabs */
+        .tabs { display: flex; border-bottom: 2px solid #dee2e6; margin-bottom: 14px; }
+        .tab-btn {
+            padding: 8px 18px; cursor: pointer; border: none; background: none;
+            font-size: 0.9rem; color: #777; border-bottom: 2px solid transparent; margin-bottom: -2px;
+        }
+        .tab-btn.active { color: #017cee; border-bottom-color: #017cee; font-weight: 600; }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+    </style>
 </head>
 <body>
-
+    <nav class="top-nav">
+        <span class="sep">|</span>
+        <a href="/schedule_insights/" style="font-weight:600;color:white;">Schedule Insights</a>
+    </nav>
+    <div class="page-body">
     <h1>Schedule Insights</h1>
-    <h2 id="timezone-header">Timezone</h2>
-    <script>
-        document.addEventListener("DOMContentLoaded", function() {
-          const timezoneHeader = document.getElementById("timezone-header");
-          const clientTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-          timezoneHeader.textContent = `${clientTimezone} Timezone`;
-        });
-    </script>
-    <!-- Date Filter Form -->
-    <form id="date-filter-form" action="{{ url_for('ScheduleInsightsAppBuilderBaseView.schedule_insights') }}" method="get">
-        <div class="form-group">
-            <label for="start-datetime">From:</label>
-            <input type="datetime-local" id="start-datetime" name="start" value="{{ filter_values.get('start', '') }}">
-        </div>
-        
-        <div class="form-group">
-            <label for="end-datetime">To:</label>
-            <input type="datetime-local" id="end-datetime" name="end" value="{{ filter_values.get('end', '') }}" max="{{ filter_values.get('max_end', '') }}">
-        </div>
+    <h2 id="tz-header">Loading timezone…</h2>
 
-        <!-- <div class="form-group">
-            <label for="show-future-runs">Show Future Runs?</label>
-            <input type="checkbox" id="show-future-runs" name="show_future_runs" value="true" {% if filter_values.get('show_future_runs', '') %}checked{% endif %}>
-        </div> -->
-        <div class="form-group">
-            <label for="selected_dags_filter">Select DAGs</label>
-            <select id="selected_dags_filter" name="selected_dags_filter[]" class="form-control select2" multiple="multiple">
-                {% for dag in all_active_dags %}
-                <option value="{{ dag }}" {% if dag in selected_dags %}selected{% endif %}>{{ dag }}</option>
-                {% endfor %}
-                <!-- Add more options as needed -->
-            </select>
-        </div>
-        <div class="form-group" id="schedule-impact-simulator">
-            <div class="panel panel-default">
-              <div class="panel-heading">
-                <h4 class="panel-title">
-                  <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion1" href="#accordion3_href" title="Schedule Impact Simulator" aria-expanded="false">
-                    Schedule Impact Simulator <span class="caret"></span>
-                  </a>
-                </h4>
-              </div>
-              <div id="accordion3_href" class="panel-collapse collapse" aria-expanded="false" style="">
-                <div class="panel-body">
-                    <table class="table table-striped table-bordered table-hover user-table">
-                        <thead>
-                            <tr>
-                                <th>DAG Name</th>
-                                <th>Cron Schedule</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="scheduleBody">
-                            {% for schedule in new_schedules %}
-                            <tr>
-                                <td>
-                                    <select name="dagName[]" onchange="validateUniqueDagNames()">
-                                        {% for dag in all_active_dags %}
-                                            <option value="{{ dag }}" {% if schedule.dag_name == dag %}selected{% endif %}>{{ dag }}</option>
-                                        {% endfor %}
-                                    </select>
-                                    <span class="error" style="display:none;">DAG name must be unique</span>
-                                </td>
-                                <td>
-                                    <input type="text" name="cronSchedule[]" placeholder="* * * * *" value="{{ schedule.cron_schedule }}" required>
-                                    <span class="error" style="display:none;">Invalid cron expression</span>
-                                </td>
-                                <td><button type="button" onclick="deleteRow(this)"><i class="fa fa-trash"></i></button></td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                    <button type="button" onclick="addRow()"><i class="fa fa-plus-circle"></i></button>
-                </div>
-              </div>
+    <!-- ================================================================ -->
+    <!-- Filters -->
+    <!-- ================================================================ -->
+    <div class="card">
+        <div class="controls">
+            <div class="ctrl-group">
+                <label>From</label>
+                <input type="datetime-local" id="start_filter"
+                       value="{{ filter_values.start[:16] if filter_values.start else '' }}">
             </div>
-        </div>
-        <input type="hidden" id="timezone" name="timezone" value="">
-        <button type="submit" class="btn btn-primary">Update</button>
-    </form>
-    <script>
-        $(document).ready(function() {
-            $('#selected_dags_filter').select2({
-                placeholder: "Select one or more DAGs",
-                allowClear: true,
-                width: '100%'  /* Makes the select2 dropdown full-width */
-            });
-        });
-    </script>
-    {% if filter_values.get('show_future_runs', '') == 'true' %}
-    <div class="dags-table-body">
-        <div class="panel panel-default">
-          <div class="panel-heading">
-            <h4 class="panel-title">
-              <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion2" href="#accordion2_href" title="Next Run" aria-expanded="false">
-                Next Run <span class="caret"></span>
-              </a>
-            </h4>
-          </div>
-          <div id="accordion2_href" class="panel-collapse collapse" aria-expanded="false" style="">
-            <div class="panel-body">
-                <table class="table table-striped table-bordered table-hover user-table">
-                    <thead>
-                      <tr>
-                        <th>Selected</th>
-                        <th>Simulator</th>
-                        <th>DAG ID</th>
-                        <th>Start Time</th>
-                        <th>End Time</th>
-                        <th>Owners</th>
-                        <th>Description</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {% for row in next_runs %}
-                      <tr>
-                        <td>
-                            {% if row.get('ind_selected_dags', '') == 'selected_dags' %}
-                            <i class="selected-icon"></i>
-                            {% else %}
-                            <i class="fa fa-times"></i>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if row.get('state', '') == 'schedule_simulator' %}
-                            <i class="simulator-icon"></i>
-                            {% else %}
-                            <i class="fa fa-times"></i>
-                            {% endif %}
-                        </td>
-                        <td>
-                          <div><a href="/dags/{{ row.dag_id }}" target="_blank">{{ row.dag_id }}</a></div>
-                        </td>
-                        <td class="table-date" table-data-date="{{ row.get('start_time', '') }}">
-                            {{ row.get('start_time', '') }}
-                        </td>
-                        <td class="table-date" table-data-date="{{ row.get('end_time', '') }}">
-                            {{ row.get('end_time', '') }}
-                        </td>
-                        <td>
-                            {{ row.get('owner', '') }}
-                        </td>
-                        <td>
-                          {{ row.get('description', '') }}
-                        </td>
-                      </tr>
-                      {% endfor %}
-                    </tbody>
-                  </table>
+            <div class="ctrl-group">
+                <label>To</label>
+                <input type="datetime-local" id="end_filter">
             </div>
-          </div>
-        </div>
-      </div>
-    <div class="dags-table-body">
-        <div class="panel panel-default">
-          <div class="panel-heading">
-            <h4 class="panel-title">
-              <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion1" href="#accordion1_href" title="All Future Runs" aria-expanded="false">
-                All Future Runs <span class="caret"></span>
-              </a>
-            </h4>
-          </div>
-          <div id="accordion1_href" class="panel-collapse collapse" aria-expanded="false" style="">
-            <div class="panel-body">
-                <table class="table table-striped table-bordered table-hover user-table">
-                    <thead>
-                      <tr>
-                        <th>Selected</th>
-                        <th>Simulator</th>
-                        <th>DAG ID</th>
-                        <th>Start Time</th>
-                        <th>End Time</th>
-                        <th>Owners</th>
-                        <th>Trigger</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {% for row in future_runs %}
-                      <tr>
-                        <td>
-                            {% if row.get('ind_selected_dags', '') == 'selected_dags' %}
-                            <i class="selected-icon"></i>
-                            {% else %}
-                            <i class="fa fa-times"></i>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if row.get('state', '') == 'schedule_simulator' %}
-                            <i class="simulator-icon"></i>
-                            {% else %}
-                            <i class="fa fa-times"></i>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div><a href="/dags/{{ row.dag_id }}" target="_blank">{{ row.dag_id }}</a></div>
-                        </td>
-                        <td class="table-date" table-data-date="{{ row.start_time }}">
-                          {{ row.start_time }}
-                        </td>
-                        <td class="table-date" table-data-date="{{ row.end_time }}">
-                            {{ row.end_time }}
-                        </td>
-                        <td>
-                            {{ row.owner }}
-                        </td>
-                        <td>
-                            {{ row.schedule_interval }}
-                        </td>
-                      </tr>
-                      {% endfor %}
-                    </tbody>
-                  </table>
+            <div class="ctrl-group" style="min-width:280px;">
+                <label>Select DAGs (highlight)</label>
+                <select id="selected_dags_filter" multiple class="form-control" style="width:100%">
+                    {% for dag in all_active_dags %}
+                    <option value="{{ dag }}">{{ dag }}</option>
+                    {% endfor %}
+                </select>
             </div>
-          </div>
+            <button class="btn" onclick="loadData()">Update</button>
         </div>
-      </div>
-      {% endif %}
-      
-       
-    <div class="legend">
-        <ul>
-            <li><span class="bar failed" style="background-color: red;"></span> Failed</li>
-            <li><span class="bar success" style="background-color: green;"></span> Success</li>
-            <li><span class="bar running" style="background-color: orange;"></span> Running</li>
-            <li><span class="bar forecast" style="background-color: rgba(9, 99, 155, 0.745);"></span> Forecast</li>
-            <li><span class="bar schedule_simulator" style="background-color: rgba(126, 9, 155, 0.745);"></span> Schedule Simulator</li>
-            <li><span class="bar selected_dags"></span> Selected DAGs</li>
-        </ul>
     </div>
 
-    <div class="chart" id="gantt-chart"></div>
-    <div class="main-content"></div>
+    <!-- ================================================================ -->
+    <!-- Schedule Impact Simulator -->
+    <!-- ================================================================ -->
+    <div class="card">
+        <div class="accordion-header" id="sim-header" onclick="toggleAccordion('sim-header','sim-body')">
+            <span>Schedule Impact Simulator</span>
+            <span class="caret">▼</span>
+        </div>
+        <div class="accordion-body" id="sim-body">
+            <table class="sim-table" id="sim-table">
+                <thead>
+                    <tr><th>DAG Name</th><th>Custom Cron Schedule</th><th></th></tr>
+                </thead>
+                <tbody id="sim-tbody"></tbody>
+            </table>
+            <div style="margin-top:10px; display:flex; gap:8px; align-items:center;">
+                <button class="btn-sm" onclick="addSimRow()">+ Add row</button>
+                <button class="btn" onclick="loadData()" style="height:30px; padding:4px 16px; font-size:0.87rem;">Apply Simulation</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- Gantt chart -->
+    <!-- ================================================================ -->
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+            <strong style="font-size:1rem;">DAG Run Timeline</strong>
+            <div class="legend">
+                <span><span class="legend-dot" style="background:#28a745"></span>Success</span>
+                <span><span class="legend-dot" style="background:#dc3545"></span>Failed</span>
+                <span><span class="legend-dot" style="background:#fd7e14"></span>Running</span>
+                <span><span class="legend-dot" style="background:#adb5bd"></span>Queued</span>
+                <span><span class="legend-dot" style="background:#017cee;opacity:.6"></span>Forecast (cron)</span>
+                <span><span class="legend-dot" style="background:#6f42c1;opacity:.7"></span>Forecast (asset)</span>
+                <span><span class="legend-dot" style="background:#7e099b;opacity:.7"></span>Simulator</span>
+            </div>
+        </div>
+        <div id="gantt-chart"></div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- Tabs: Next Run | All Runs -->
+    <!-- ================================================================ -->
+    <div class="card">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('next-run-pane', this)">Next Run</button>
+            <button class="tab-btn"        onclick="switchTab('all-runs-pane', this)">All Runs</button>
+        </div>
+
+        <!-- Next Run tab -->
+        <div class="tab-pane active" id="next-run-pane">
+            <table class="data-table" id="next-run-table">
+                <thead>
+                    <tr>
+                        <th>DAG ID</th>
+                        <th>Next Start</th>
+                        <th>Next End</th>
+                        <th>State</th>
+                        <th>Type</th>
+                        <th>Duration</th>
+                        <th>Owner</th>
+                        <th>Schedule</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- All Runs tab -->
+        <div class="tab-pane" id="all-runs-pane">
+            <table class="data-table" id="all-runs-table">
+                <thead>
+                    <tr>
+                        <th>DAG ID</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>State</th>
+                        <th>Type</th>
+                        <th>Duration</th>
+                        <th>Owner</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="tooltip"></div>
+    </div><!-- end .page-body -->
 
     <script>
-        const chartElement = d3.select("#gantt-chart");
-    
-        // Pass the task data from Python to JavaScript
-        const dagsData = {{ dags_data | tojson }};
-    
-        // Create scales and axes
-        const margin = { top: 20, right: 30, bottom: 40, left: 200 };
-        const width = 1400 - margin.left - margin.right;
-        const heightPerTask = 20;
+    // -----------------------------------------------------------------------
+    // Init
+    // -----------------------------------------------------------------------
+    const clientTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    document.getElementById('tz-header').textContent = clientTz + ' timezone';
 
-        const distinctTaskIds = Array.from(new Set(dagsData.map(d => d.dag_id)));
+    // Pre-fill end filter to now + 24 h
+    (function() {
+        const end = new Date(Date.now() + 24 * 3600 * 1000);
+        document.getElementById('end_filter').value = toLocalInput(end);
+    })();
 
-        // Step 2
-        const svgHeight = Math.max(distinctTaskIds.length * heightPerTask);
+    // Init Select2
+    $(document).ready(function() {
+        $('#selected_dags_filter').select2({
+            placeholder: "Select DAGs to highlight",
+            allowClear: true,
+            width: '100%',
+        });
+    });
 
-    
-        const x = d3.scaleTime()
-            .range([0, width])
-            .domain([
-                d3.min(dagsData, d => new Date(d.start_time)),
-                d3.max(dagsData, d => new Date(d.end_time))
-            ]);
-    
-        const y = d3.scaleBand()
-            .padding(0.1)
-            .domain(distinctTaskIds) // Unique task IDs for Y-axis
-            .range([0, svgHeight]);
-    
-        const svg = chartElement.append("svg")
-            .attr("width", width + margin.left + margin.right)
-            .attr("height", svgHeight + margin.top + margin.bottom)
-            .append("g")
-            .attr("transform", `translate(${margin.left},${margin.top})`);
-    
-        // Create the clip path
-        svg.append("clipPath")
-            .attr("id", "clip")
-            .append("rect")
-            .attr("width", width)
-            .attr("height", svgHeight);
-    
-        // Invisible rectangle for zooming (transparent but interactive)
-        svg.append("rect")
-            .attr("width", width)
-            .attr("height", svgHeight)
-            .style("fill", "none")
-            .style("pointer-events", "all")
-            .call(d3.zoom()
-                .scaleExtent([1, 10]) // Zoom limits
-                .translateExtent([[0, 0], [width, svgHeight]]) // Pan limits
-                .extent([[0, 0], [width, svgHeight]])
-                .on("zoom", zoomed));
-    
-        const xAxis = d3.axisBottom(x).ticks(6).tickFormat(d3.timeFormat("%m-%d %H:%M"));
-    
-        const xAxisGroup = svg.append("g")
-            .attr("transform", `translate(0,${svgHeight})`)
-            .call(xAxis);
-    
-        const yAxis = svg.append("g")
-            .call(d3.axisLeft(y));
-    
-        // Tooltip for Y-axis labels
-        const yTooltip = d3.select("body").append("div").attr("class", "y-tooltip");
-    
-        yAxis.selectAll("text")
-            .on("mouseover", function (event, d) {
-                yTooltip.transition().duration(200).style("opacity", .9);
-                yTooltip.html(d)
-                    .style("left", (event.pageX + 5) + "px")
-                    .style("top", (event.pageY - 28) + "px");
-            })
-            .on("mouseout", function (d) {
-                yTooltip.transition().duration(500).style("opacity", 0);
-            });
-    
-        // Horizontal lines for task separation (draw inside the clip area)
-        svg.selectAll(".line-separator")
-            .data(Array.from(new Set(dagsData.map(d => d.dag_id))))
-            .enter().append("line")
-            .attr("class", "line-separator")
-            .attr("x1", 0)
-            .attr("y1", d => y(d) + y.bandwidth() / 2)
-            .attr("x2", width)
-            .attr("y2", d => y(d) + y.bandwidth() / 2)
-            .attr("clip-path", "url(#clip)");
-    
-        // Tooltip for bars
-        const tooltip = d3.select("body").append("div").attr("class", "tooltip");
-        
-        // svg.call(d3.zoom()
-        //     .scaleExtent([1, 10])
-        //     .translateExtent([[0, 0], [width, height]])
-        //     .on("zoom", zoomed));
-        // Add bars for each task run with clipping
-        const bars = svg.selectAll(".bar")
-            .data(dagsData)
-            .enter().append("g") // Create a group for each bar
-            .attr("class", "bar-group");
+    function toLocalInput(dt) {
+        const p = n => String(n).padStart(2, '0');
+        return `${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())}T${p(dt.getHours())}:${p(dt.getMinutes())}`;
+    }
 
-        bars.append("a") // Wrap the bar in an <a> element for linking
-            .attr("href", d => `/dags/${d.dag_id}`) // Replace with your desired link
-            .attr("target", "_blank") // Open the link in a new tab
-            .append("rect")
-            .attr("class", d => `bar ${d.state} ${d.ind_selected_dags} ${d.manual_run ? 'manual-run' : ''}`)
-            .attr("x", d => x(new Date(d.start_time)))
-            .attr("y", d => y(d.dag_id))
-            .attr("width", d => x(new Date(d.end_time)) - x(new Date(d.start_time)))
-            .attr("height", heightPerTask)
-            .attr("clip-path", "url(#clip)") // Clip the bars within the chart area
-            .on("mouseover", function (event, d) {
-                tooltip.transition().duration(200).style("opacity", .9);
-                tooltip.html(`DAG: ${d.dag_id}<br>Status: ${d.state}<br>Start: ${new Date(d.start_time).toLocaleString()}<br>End: ${new Date(d.end_time).toLocaleString()}<br>Schedule: ${d.schedule_interval}<br>Duration: ${d.duration}<br>Owners: ${d.owner}<br>Run Type: ${d.run_type}`)
-                    .style("left", (event.pageX + 5) + "px")
-                    .style("top", (event.pageY - 28) + "px");
-            })
-            .on("mouseout", function (d) {
-                tooltip.transition().duration(500).style("opacity", 0);
-            });
-        
-        bars.append("a") // Wrap the bar in an <a> element for linking
-            .attr("href", d => `/dags/${d.dag_id}`) // Replace with your desired link
-            .attr("target", "_blank")
-    
-        // Zoom behavior
-        function zoomed(event) {
-            const newX = event.transform.rescaleX(x); // Rescale the X scale
+    function fmtDate(iso) {
+        if (!iso) return '';
+        return new Date(iso).toLocaleString(undefined, {
+            month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', hour12: false
+        });
+    }
 
-            // Update the X axis
-            xAxisGroup.call(d3.axisBottom(newX).ticks(6).tickFormat(d3.timeFormat("%m-%d %H:%M"))); 
+    function stateBadge(state) {
+        if (!state) return '<span class="muted">—</span>';
+        return `<span class="state-badge state-${state}">${state.replace('_', ' ')}</span>`;
+    }
 
-            // Update the position and width of bars
-            bars.select("rect") // Select the rectangles within the bars
-                .attr("x", d => newX(new Date(d.start_time)))
-                .attr("width", d => newX(new Date(d.end_time)) - newX(new Date(d.start_time)));
+    // -----------------------------------------------------------------------
+    // Tabs
+    // -----------------------------------------------------------------------
+    function switchTab(paneId, btn) {
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(paneId).classList.add('active');
+        btn.classList.add('active');
+    }
 
-            // Update the position of the horizontal lines if you have any
-            svg.selectAll(".line-separator")
-                .attr("x1", 0)
-                .attr("x2", width)
-                .attr("y1", d => y(d) + y.bandwidth() / 2)
-                .attr("y2", d => y(d) + y.bandwidth() / 2);
+    // -----------------------------------------------------------------------
+    // Accordion
+    // -----------------------------------------------------------------------
+    function toggleAccordion(headerId, bodyId) {
+        const h = document.getElementById(headerId);
+        const b = document.getElementById(bodyId);
+        h.classList.toggle('open');
+        b.classList.toggle('open');
+    }
+
+    // -----------------------------------------------------------------------
+    // Schedule Impact Simulator table
+    // -----------------------------------------------------------------------
+    const ALL_DAGS = {{ all_active_dags | tojson }};
+
+    function dagOptions(selected) {
+        return ALL_DAGS.map(d =>
+            `<option value="${d}" ${d === selected ? 'selected' : ''}>${d}</option>`
+        ).join('');
+    }
+
+    function addSimRow(dagName='', cronVal='') {
+        const tbody = document.getElementById('sim-tbody');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><select>${dagOptions(dagName)}</select></td>
+            <td><input type="text" placeholder="*/30 * * * *" value="${cronVal}"></td>
+            <td><button class="btn-sm danger" onclick="this.closest('tr').remove()">✕</button></td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    function getSimulatorRows() {
+        const rows = [];
+        document.querySelectorAll('#sim-tbody tr').forEach(tr => {
+            const dag = tr.querySelector('select').value;
+            const cron = tr.querySelector('input').value.trim();
+            if (dag && cron) rows.push({ dag_name: dag, cron_schedule: cron });
+        });
+        return rows;
+    }
+
+    // -----------------------------------------------------------------------
+    // Load data
+    // -----------------------------------------------------------------------
+    async function loadData() {
+        const startVal = document.getElementById('start_filter').value;
+        const endVal   = document.getElementById('end_filter').value;
+        const params = new URLSearchParams();
+        if (startVal) params.set('start', new Date(startVal).toISOString());
+        if (endVal)   params.set('end',   new Date(endVal).toISOString());
+        params.set('timezone_str', clientTz);
+
+        // Selected DAGs
+        const sel = Array.from(document.getElementById('selected_dags_filter').selectedOptions).map(o => o.value);
+        sel.forEach(d => params.append('selected_dags', d));
+
+        // Simulator overrides
+        getSimulatorRows().forEach(r => {
+            params.append('dag_name', r.dag_name);
+            params.append('cron_schedule', r.cron_schedule);
+        });
+
+        const resp = await fetch(`/schedule_insights/api/predicted_runs?${params}`);
+        const data = await resp.json();
+
+        renderGantt(data.runs || [], sel);
+        renderNextRun(data.next_runs || []);
+        renderAllRuns(data.runs || []);
+    }
+
+    // -----------------------------------------------------------------------
+    // Gantt chart
+    // -----------------------------------------------------------------------
+    function renderGantt(runs, selectedDags) {
+        d3.select('#gantt-chart').selectAll('*').remove();
+        if (runs.length === 0) {
+            d3.select('#gantt-chart').append('p').style('color','#999').text('No data for this time range.');
+            return;
         }
-    </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Get the user's timezone using Intl.DateTimeFormat
-            const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    
-            // Set the timezone value in the hidden input field
-            document.getElementById('timezone').value = timezone;
-        });
-    </script>
-    <script>
-        document.querySelectorAll('.table-date').forEach(cell => {
-            const dateValue = cell.getAttribute('table-data-date');
-            if (dateValue == '') {
-                cell.textContent = ''
-            }
-            else {
-            const formattedDate = new Date(dateValue).toLocaleString();
-            cell.textContent = formattedDate; // Replace the cell text with the formatted date
-            }
-        });
-    </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const startInput = document.getElementById('start-datetime');
-            const endInput = document.getElementById('end-datetime');
-        
-            function convertToLocalTime(datetimeWithTimezone) {
-                const utcDate = new Date(datetimeWithTimezone); // Parse the incoming UTC date
-                const options = {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false, // Use 24-hour format
-                };
-        
-                // Format to local time and return in 'YYYY-MM-DDTHH:MM' format
-                const localDateString = utcDate.toLocaleString('sv-SE', options).replace(' ', 'T');
-                return localDateString; 
-            }
-        
-            // Get values directly from the server-side context
-            const startTimeWithTimezone = "{{ filter_values.get('start', '') }}";
-            const endTimeWithTimezone = "{{ filter_values.get('end', '') }}";
-        
-            // Convert and set values
-            if (startTimeWithTimezone) {
-                startInput.value = convertToLocalTime(startTimeWithTimezone);
-            }
-        
-            if (endTimeWithTimezone) {
-                endInput.value = convertToLocalTime(endTimeWithTimezone);
-            }
-        });
-        </script>
-        
-        <script>
-            // document.getElementById("show-future-runs").addEventListener("change", function() {
-            //     const simulatorPanel = document.getElementById("schedule-impact-simulator");
-            //     if (this.checked) {
-            //         simulatorPanel.style.display = "block";
-            //     } else {
-            //         simulatorPanel.style.display = "none";
-            //     }
-            // });
 
-            // Trigger the change event on page load to ensure correct display
-            // document.getElementById("show-future-runs").dispatchEvent(new Event('change'));
-            // Function to add a new row to the table
-            function addRow() {
-                const tableBody = document.getElementById("scheduleBody");
-                const newRow = document.createElement("tr");
-                newRow.innerHTML = `
-                    <td>
-                        <select name="dagName[]" onchange="validateUniqueDagNames()">
-                            {% for dag in all_active_dags %}
-                                <option value="{{ dag }}">{{ dag }}</option>
-                            {% endfor %}
-                        </select>
-                        <span class="error" style="display:none;">DAG name must be unique</span>
-                    </td>
-                    <td>
-                        <input type="text" name="cronSchedule[]" placeholder="* * * * *" required>
-                        <span class="error" style="display:none;">Invalid cron expression</span>
-                    </td>
-                    <td><button type="button" onclick="deleteRow(this)"><i class="fa fa-trash"></i></button></td>
-                `;
-                tableBody.appendChild(newRow);
-            }
-        
-            // Function to delete a row from the table
-            function deleteRow(button) {
-                button.closest("tr").remove();
-                validateUniqueDagNames();  // Revalidate uniqueness when a row is deleted
-            }
-        
-            // Validate uniqueness of DAG names
-            function validateUniqueDagNames() {
-                const dagNameElements = document.querySelectorAll("select[name='dagName[]']");
-                const selectedValues = Array.from(dagNameElements).map(select => select.value);
-                const duplicates = selectedValues.filter((item, index) => selectedValues.indexOf(item) !== index);
-        
-                dagNameElements.forEach(select => {
-                    const errorSpan = select.nextElementSibling;
-                    if (duplicates.includes(select.value)) {
-                        errorSpan.style.display = "inline";
-                    } else {
-                        errorSpan.style.display = "none";
-                    }
-                });
-            }
-        
-            // Simple cron validation function
-            // Improved cron validation function
-            function validateCron(cron) {
-                const cronPattern = /^(\*|([0-5]?\d)|([0-5]?\d(,[0-5]?\d)+)|([0-5]?\d(-[0-5]?\d))|(\*\/[1-9]\d*))(\s+(\*|([0-5]?\d)|([0-5]?\d(,[0-5]?\d)+)|([0-5]?\d(-[0-5]?\d))|(\*\/[1-9]\d*))){4}$/;
-                return cronPattern.test(cron);
-            }
-        
-        
-            // Form submission with validation
-            document.getElementById("date-filter-form").addEventListener("submit", function(event) {
-                event.preventDefault();
-                let isValid = true;
-        
-                // Validate cron expressions
-                document.querySelectorAll("input[name='cronSchedule[]']").forEach(input => {
-                    const errorSpan = input.nextElementSibling;
-                    if (validateCron(input.value)) {
-                        errorSpan.style.display = "none";
-                    } else {
-                        errorSpan.style.display = "inline";
-                        isValid = false;
-                    }
-                });
-        
-                // Validate unique DAG names
-                validateUniqueDagNames();
-                if (document.querySelectorAll(".error[style*='inline']").length > 0) {
-                    isValid = false;
-                }  
-                if (isValid) {
-                    this.submit();
-                }
+        // KEY FIX: Y domain uses UNIQUE dag ids, not total run count
+        const dagIds = Array.from(new Set(runs.map(d => d.dag_id))).sort();
+        const margin = { top: 10, right: 20, bottom: 46, left: 210 };
+        const barH   = 18;
+        const padding = 0.25;
+        // Height based on unique DAG count, not total run count
+        const height = Math.max(80, dagIds.length * Math.round(barH / (1 - padding)));
+
+        const width = Math.max(800, (window.innerWidth || 1300) - margin.left - margin.right - 60);
+
+        const xMin = d3.min(runs, d => new Date(d.start_time));
+        const xMax = d3.max(runs, d => new Date(d.end_time));
+
+        const x = d3.scaleTime().domain([xMin, xMax]).range([0, width]);
+        const y = d3.scaleBand().domain(dagIds).range([0, height]).padding(padding);
+
+        const svg = d3.select('#gantt-chart').append('svg')
+            .attr('width',  width  + margin.left + margin.right)
+            .attr('height', height + margin.top  + margin.bottom)
+            .append('g')
+            .attr('transform', `translate(${margin.left},${margin.top})`);
+
+        svg.append('clipPath').attr('id', 'clip')
+            .append('rect').attr('width', width).attr('height', height);
+
+        // Axes
+        const xAxisG = svg.append('g')
+            .attr('transform', `translate(0,${height})`)
+            .call(d3.axisBottom(x).ticks(8).tickFormat(d3.timeFormat('%m-%d %H:%M')));
+        xAxisG.selectAll('text').attr('transform', 'rotate(-20)').style('text-anchor', 'end');
+
+        svg.append('g').call(d3.axisLeft(y));
+
+        // Horizontal grid lines
+        svg.selectAll('.gridline')
+            .data(dagIds)
+            .join('line')
+            .attr('class', 'gridline')
+            .attr('x1', 0).attr('x2', width)
+            .attr('y1', d => y(d) + y.bandwidth() / 2)
+            .attr('y2', d => y(d) + y.bandwidth() / 2)
+            .attr('stroke', '#eee').attr('stroke-width', 1)
+            .attr('clip-path', 'url(#clip)');
+
+        // Zoom
+        const zoom = d3.zoom()
+            .scaleExtent([0.3, 50])
+            .on('zoom', (event) => {
+                const newX = event.transform.rescaleX(x);
+                xAxisG.call(d3.axisBottom(newX).ticks(8).tickFormat(d3.timeFormat('%m-%d %H:%M')));
+                xAxisG.selectAll('text').attr('transform', 'rotate(-20)').style('text-anchor', 'end');
+                // clip-path handles boundary clipping — no manual clamping needed
+                bars.attr('x',     d => newX(new Date(d.start_time)))
+                    .attr('width', d => Math.max(1, newX(new Date(d.end_time)) - newX(new Date(d.start_time))));
             });
-        </script>
-        
-        
+
+        svg.append('rect')
+            .attr('width', width).attr('height', height)
+            .style('fill', 'none').style('pointer-events', 'all')
+            .call(zoom);
+
+        // Bars
+        const tooltip = document.getElementById('tooltip');
+
+        const hasSelection = selectedDags.length > 0;
+
+        const bars = svg.selectAll('.bar')
+            .data(runs)
+            .join('rect')
+            .attr('class', d => {
+                const sel = hasSelection
+                    ? (selectedDags.includes(d.dag_id) ? 'selected_dags' : 'not_selected_dags')
+                    : '';
+                return `bar bar-${d.state} ${sel}`;
+            })
+            .attr('clip-path', 'url(#clip)')
+            .attr('x',      d => x(new Date(d.start_time)))
+            .attr('y',      d => y(d.dag_id))
+            .attr('width',  d => Math.max(1, x(new Date(d.end_time)) - x(new Date(d.start_time))))
+            .attr('height', y.bandwidth())
+            .attr('rx', 2)
+            .on('mouseover', (event, d) => {
+                tooltip.style.opacity = 1;
+                const triggerLine = d.schedule_interval
+                    ? `<br>Triggered by: <i>${d.schedule_interval}</i>` : '';
+                tooltip.innerHTML = `<b>${d.dag_id}</b><br>
+                    State: ${d.state}<br>
+                    Start: ${fmtDate(d.start_time)}<br>
+                    End:   ${fmtDate(d.end_time)}<br>
+                    Duration: ${d.duration || ''}<br>
+                    Type: ${d.run_type || ''}${triggerLine}<br>
+                    Owner: ${d.owner || ''}`;
+                tooltip.style.left = (event.clientX + 14) + 'px';
+                tooltip.style.top  = (event.clientY - 30) + 'px';
+            })
+            .on('mousemove', (event) => {
+                tooltip.style.left = (event.clientX + 14) + 'px';
+                tooltip.style.top  = (event.clientY - 30) + 'px';
+            })
+            .on('mouseout', () => { tooltip.style.opacity = 0; });
+    }
+
+    // -----------------------------------------------------------------------
+    // Next Run table
+    // -----------------------------------------------------------------------
+    function renderTypeCell(r) {
+        if (r.description) return `<span class="muted">${r.description}</span>`;
+        if (r.run_type === 'asset_triggered') {
+            let html = `<span>asset_triggered</span>`;
+            if (r.trigger_assets) {
+                html += `<br><small style="color:#6f42c1;word-break:break-all">${r.trigger_assets}</small>`;
+            }
+            if (r.paused_upstream && r.paused_upstream.length) {
+                html += `<br><small style="color:#dc3545">&#9888; paused upstream: ${r.paused_upstream.join(', ')}</small>`;
+            }
+            return html;
+        }
+        return r.run_type || '';
+    }
+
+    function renderNextRun(next_runs) {
+        const tbody = document.querySelector('#next-run-table tbody');
+        tbody.innerHTML = next_runs.map(r => `
+            <tr>
+                <td><a href="/dags/${r.dag_id}" target="_blank">${r.dag_id}</a></td>
+                <td>${r.start_time ? fmtDate(r.start_time) : '<span class="muted">—</span>'}</td>
+                <td>${r.end_time   ? fmtDate(r.end_time)   : '<span class="muted">—</span>'}</td>
+                <td>${r.state ? stateBadge(r.state) : '<span class="muted">—</span>'}</td>
+                <td>${renderTypeCell(r)}</td>
+                <td>${r.duration || '<span class="muted">—</span>'}</td>
+                <td>${r.owner || ''}</td>
+                <td><small>${r.schedule_interval || ''}</small></td>
+            </tr>
+        `).join('');
+    }
+
+    // -----------------------------------------------------------------------
+    // All Runs table
+    // -----------------------------------------------------------------------
+    function renderRunTypeCell(r) {
+        if (r.run_type === 'asset_triggered' && r.schedule_interval) {
+            return `asset_triggered<br><small style="color:#6f42c1;font-size:0.75rem;word-break:break-all">${r.schedule_interval}</small>`;
+        }
+        return r.run_type || '';
+    }
+
+    function renderAllRuns(runs) {
+        const tbody = document.querySelector('#all-runs-table tbody');
+        tbody.innerHTML = runs.map(r => `
+            <tr>
+                <td><a href="/dags/${r.dag_id}" target="_blank">${r.dag_id}</a></td>
+                <td>${fmtDate(r.start_time)}</td>
+                <td>${fmtDate(r.end_time)}</td>
+                <td>${stateBadge(r.state)}</td>
+                <td>${renderRunTypeCell(r)}</td>
+                <td>${r.duration || ''}</td>
+                <td>${r.owner || ''}</td>
+            </tr>
+        `).join('');
+    }
+
+    // -----------------------------------------------------------------------
+    // Boot
+    // -----------------------------------------------------------------------
+    window.onload = loadData;
+    </script>
 </body>
 </html>
-{% endblock %}

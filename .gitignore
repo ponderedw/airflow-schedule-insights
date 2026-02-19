@@ -28,7 +28,7 @@ Thumbs.db
 
 # Log files
 *.log
-
+local_airflow_3/logs/dag_processor
 # Testing data
 .tox/
 .nox/

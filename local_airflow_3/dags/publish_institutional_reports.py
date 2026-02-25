@@ -5,22 +5,21 @@ import time
 
 
 @dag(
-    dag_id="transform_customer_sentiment",
+    dag_id="publish_institutional_reports",
     max_active_runs=1,
     start_date=datetime(2023, 1, 1),
     is_paused_upon_creation=False,
     catchup=False,
     schedule=(
-        (Dataset("transform_sales_aggregator") & Dataset("load_customer_feedback"))
-        | Dataset("load_ticket_sales")
+        Dataset("consolidate_academic_records") & Dataset("transform_enrollment_metrics")
     ),
 )
-def dag_test():
-    @task(outlets=[Dataset("transform_customer_sentiment")])
+def dag_publish_institutional_reports():
+    @task(outlets=[Dataset("publish_institutional_reports")])
     def end_task():
-        time.sleep(60)
+        time.sleep(25)
 
     end_task()
 
 
-dag_test()
+dag_publish_institutional_reports()

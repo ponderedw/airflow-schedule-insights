@@ -1,22 +1,21 @@
 from airflow.sdk import dag, task
 from pendulum import datetime
-import time
 
 
 @dag(
-    dag_id="load_box_office_reports",
+    dag_id="load_staff_roster",
     max_active_runs=1,
     start_date=datetime(2023, 1, 1),
-    is_paused_upon_creation=True,
+    is_paused_upon_creation=False,
     catchup=False,
     schedule=None,
 )
-def dag_test():
+def dag_load_staff_roster():
     @task
     def try_task():
-        time.sleep(20)
+        pass
 
     try_task()
 
 
-dag_test()
+dag_load_staff_roster()

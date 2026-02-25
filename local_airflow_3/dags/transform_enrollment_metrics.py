@@ -5,22 +5,19 @@ import time
 
 
 @dag(
-    dag_id="transform_loyalty_program_analysis",
+    dag_id="transform_enrollment_metrics",
     max_active_runs=1,
     start_date=datetime(2023, 1, 1),
     is_paused_upon_creation=False,
     catchup=False,
-    schedule=(
-        Dataset("transform_inventory_optimization")
-        & Dataset("transform_movie_performance")
-    ),
+    schedule=(Dataset("consolidate_academic_records")),
 )
-def dag_test():
-    @task(outlets=[Dataset("transform_loyalty_program_analysis")])
+def dag_transform_enrollment_metrics():
+    @task(outlets=[Dataset("transform_enrollment_metrics")])
     def end_task():
         time.sleep(25)
 
     end_task()
 
 
-dag_test()
+dag_transform_enrollment_metrics()

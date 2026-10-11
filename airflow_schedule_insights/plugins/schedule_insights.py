@@ -163,8 +163,7 @@ async def main_view(request: Request, start: str = None):
             ).scalars().all()
         )
 
-    return templates.TemplateResponse("schedule_insights.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "schedule_insights.html", {
         "all_active_dags": active_dags,
         "filter_values": {"start": start},
     })

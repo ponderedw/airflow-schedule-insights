@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "airflow-schedule-insights"
-version = "0.2.0"
+version = "0.2.1"
 description = "An Apache Airflow 3 plugin that visualizes DAG runs in a Gantt chart, predicts future cron and asset-triggered runs, and identifies DAGs that won't execute. Enhance your workflow monitoring and planning with intuitive visualizations."
 license = "MIT"
 authors = ["Ponder"]

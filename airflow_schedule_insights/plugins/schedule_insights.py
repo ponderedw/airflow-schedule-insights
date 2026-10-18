@@ -169,6 +169,95 @@ async def main_view(request: Request, start: str = None):
     })
 
 
+@app.get("/get_next_future_run_json")
+async def get_next_future_run_json(dag_id: str = Query(...)):
+    """Return next-run prediction for a single DAG (used by the Airflow MCP)."""
+    now = datetime.now(timezone.utc)
+    end_dt = now + timedelta(hours=24)
+
+    with create_session() as session:
+        row = session.execute(
+            select(
+                DagModel.timetable_summary,
+                DagModel.timetable_description,
+                DagModel.is_paused,
+                DagModel.asset_expression,
+                DagModel.next_dagrun,
+                DagModel.next_dagrun_create_after,
+                DagModel.next_dagrun_data_interval_end,
+            )
+            .where(DagModel.dag_id == dag_id)
+            .where(DagModel.is_stale.is_(False))
+        ).first()
+
+        if not row:
+            return JSONResponse(
+                content={"error": f"DAG '{dag_id}' not found or is stale"},
+                status_code=404,
+            )
+
+        dur_row = session.execute(
+            select(
+                func.percentile_cont(0.5)
+                .within_group(DagRun.end_date - DagRun.start_date)
+                .label("median_duration")
+            )
+            .where(DagRun.dag_id == dag_id, DagRun.state == "success")
+        ).first()
+
+    median_dur = (
+        dur_row.median_duration
+        if dur_row and dur_row.median_duration
+        else timedelta(minutes=5)
+    )
+
+    if row.is_paused:
+        return JSONResponse(content={
+            "start_time": None, "end_time": None, "duration": None,
+            "description": "The DAG is paused", "run_type": None,
+        })
+
+    anchor = _ensure_utc(
+        row.next_dagrun
+        or row.next_dagrun_create_after
+        or row.next_dagrun_data_interval_end
+    )
+    cron_str = ScheduleManager.get_valid_cron(row.timetable_summary)
+
+    if cron_str:
+        upcoming = ScheduleManager.predict_future_cron_runs(
+            cron_str, now, end_dt, anchor, max_runs=1
+        )
+        if upcoming:
+            r = upcoming[0]
+            return JSONResponse(content={
+                "start_time": r.isoformat(),
+                "end_time": (r + median_dur).isoformat(),
+                "duration": str(median_dur).split(".")[0],
+                "description": row.timetable_description,
+                "run_type": "scheduled",
+            })
+        return JSONResponse(content={
+            "start_time": None, "end_time": None,
+            "duration": str(median_dur).split(".")[0],
+            "description": "No upcoming runs in the next 24 hours",
+            "run_type": "scheduled",
+        })
+
+    if row.asset_expression:
+        return JSONResponse(content={
+            "start_time": None, "end_time": None,
+            "duration": str(median_dur).split(".")[0],
+            "description": f"Triggered by assets: {format_asset_expr(row.asset_expression)}",
+            "run_type": "dataset/trigger",
+        })
+
+    return JSONResponse(content={
+        "start_time": None, "end_time": None, "duration": None,
+        "description": "No schedule or dependencies", "run_type": None,
+    })
+
+
 @app.get("/api/predicted_runs")
 async def get_predicted_runs(
     start: str = Query(None),

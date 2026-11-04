@@ -9,6 +9,7 @@ from airflow.models import DagRun, DagModel
 from sqlalchemy import and_, func, select, text
 from croniter import croniter, CroniterBadCronError
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 import os
 
 app = FastAPI()
@@ -48,23 +49,33 @@ class ScheduleManager:
         return None
 
     @staticmethod
-    def predict_future_cron_runs(cron_schedule, start_dt, end_dt, anchor=None, max_runs=1000):
+    def predict_future_cron_runs(cron_schedule, start_dt, end_dt, anchor=None,
+                                 max_runs=1000, tz=None):
         if anchor is None:
             anchor = datetime.now(timezone.utc)
         if anchor.tzinfo is None:
             anchor = anchor.replace(tzinfo=timezone.utc)
+        if tz is not None:
+            anchor = anchor.astimezone(tz)          # le cron est évalué dans ce fuseau
         cron = croniter(cron_schedule, anchor)
         effective_start = max(datetime.now(timezone.utc), start_dt)
         runs = []
         count = 0
         while count < max_runs:
-            nxt = cron.get_next(datetime)
+            nxt = cron.get_next(datetime).astimezone(timezone.utc)   # on repasse en UTC
             if nxt > end_dt:
                 break
             if nxt >= effective_start:
                 runs.append(nxt)
             count += 1
         return runs
+
+
+def _get_tz(name):
+    try:
+        return ZoneInfo(name)
+    except Exception:
+        return timezone.utc
 
 
 # ---------------------------------------------------------------------------
@@ -170,10 +181,14 @@ async def main_view(request: Request, start: str = None):
 
 
 @app.get("/get_next_future_run_json")
-async def get_next_future_run_json(dag_id: str = Query(...)):
+async def get_next_future_run_json(
+    dag_id: str = Query(...),
+    timezone_str: str = Query("UTC"),            # <-- AJOUT (paramètre)
+):
     """Return next-run prediction for a single DAG (used by the Airflow MCP)."""
     now = datetime.now(timezone.utc)
     end_dt = now + timedelta(hours=24)
+    client_tz = _get_tz(timezone_str)            # <-- AJOUT (création du fuseau)
 
     with create_session() as session:
         row = session.execute(
@@ -226,8 +241,9 @@ async def get_next_future_run_json(dag_id: str = Query(...)):
 
     if cron_str:
         upcoming = ScheduleManager.predict_future_cron_runs(
-            cron_str, now, end_dt, anchor, max_runs=1
+            cron_str, now, end_dt, anchor, max_runs=1, tz=client_tz   # <-- MODIF (tz=client_tz)
         )
+        # ... le reste de la fonction ne change pas
         if upcoming:
             r = upcoming[0]
             return JSONResponse(content={
